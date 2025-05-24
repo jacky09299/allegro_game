@@ -30,7 +30,7 @@ else # Mac OS / Linux
 	export PKG_CONFIG_PATH=/usr/local/lib/pkgconfig
 	export DYLD_LIBRARY_PATH=/usr/local/lib:$DYLD_LIBRARY_PATH
 	ALLEGRO_LIBRARIES := allegro-5 allegro_image-5 allegro_font-5 allegro_ttf-5 allegro_dialog-5 allegro_primitives-5 allegro_audio-5 allegro_acodec-5
-	ALLEGRO_FLAGS_RELEASE := $(shell pkg-config --cflags --libs "$(ALLEGRO_LIBRARIES) <= 5.2.7") -lallegro
+	ALLEGRO_FLAGS_RELEASE := $(shell pkg-config --cflags --libs $(ALLEGRO_LIBRARIES)) -lallegro -lm
 	ALLEGRO_DLL_PATH_RELEASE := 
 	ALLEGRO_FLAGS_DEBUG := $(ALLEGRO_FLAGS_RELEASE)
 	ALLEGRO_DLL_PATH_DEBUG := 

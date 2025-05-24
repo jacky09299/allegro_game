@@ -18,6 +18,7 @@
 #include "projectile.h"
 #include "game_state.h"
 #include "graphics.h"
+#include "minigame_flower.h" // Added for the flower minigame
 // No need to include utils.h here if only other modules use it
 
 /**
@@ -153,6 +154,10 @@ int main() {
                     for (int i = 0; i < 3; ++i) { menu_buttons[i].is_hovered = false; }
                 }
             }
+            // Update logic for MINIGAME_FLOWER
+            if (game_phase == MINIGAME_FLOWER) {
+                update_minigame_flower();
+            }
         } 
         else if (ev.type == ALLEGRO_EVENT_DISPLAY_CLOSE) { 
             game_is_running = false; 
@@ -166,6 +171,8 @@ int main() {
                  handle_main_menu_input(ev);
             } else if (game_phase == GROWTH) {
                  handle_growth_screen_input(ev);
+            } else if (game_phase == MINIGAME_FLOWER) { // Added input handling for MINIGAME_FLOWER
+                handle_minigame_flower_input(ev);
             }
         }
         else { 
@@ -173,6 +180,9 @@ int main() {
                 case MENU: handle_main_menu_input(ev); break;
                 case GROWTH: handle_growth_screen_input(ev); break;
                 case BATTLE: handle_battle_scene_input_actions(ev); break;
+                case MINIGAME_FLOWER: // Added event handling for MINIGAME_FLOWER
+                    handle_minigame_flower_input(ev);
+                    break;
                 default: break; // Should not happen
             }
         }
@@ -183,6 +193,9 @@ int main() {
                 case MENU: render_main_menu(); break;
                 case GROWTH: render_growth_screen(); break;
                 case BATTLE: render_battle_scene(); break;
+                case MINIGAME_FLOWER: // Added rendering for MINIGAME_FLOWER
+                    render_minigame_flower();
+                    break;
                 default: break; // Should not happen
             }
             al_flip_display(); 

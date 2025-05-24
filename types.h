@@ -11,6 +11,7 @@ typedef enum {
     GROWTH,     // 養成階段
     BATTLE,     // 戰鬥階段
     MINIGAME_FLOWER, // 新增的小遊戲階段
+    BACKPACK_SCREEN, // 背包畫面階段
     EXIT        // 退出遊戲
 } GamePhase;
 

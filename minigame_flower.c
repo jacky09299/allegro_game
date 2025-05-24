@@ -8,6 +8,21 @@
 #include "minigame_flower.h"
 #include "types.h" // Included by globals.h or minigame_flower.h, but good for clarity
 
+// Placeholder for starting audio recording
+static void start_audio_recording() {
+    printf("DEBUG: start_audio_recording() called\n");
+}
+
+// Placeholder for restarting audio recording
+static void restart_audio_recording() {
+    printf("DEBUG: restart_audio_recording() called\n");
+}
+
+// Placeholder for stopping audio recording
+static void stop_audio_recording() {
+    printf("DEBUG: stop_audio_recording() called\n");
+}
+
 // Static global variables for the minigame
 static MinigameFlowerPlant flower_plant;
 static Button minigame_buttons[NUM_MINIGAME_FLOWER_BUTTONS];
@@ -84,6 +99,18 @@ void init_minigame_flower(void) {
     minigame_buttons[4].text_color = al_map_rgb(255, 255, 255);
     minigame_buttons[4].action_phase = GROWTH; // This will trigger phase change
     minigame_buttons[4].is_hovered = false;
+
+    // Button 5: "採收" (Harvest)
+    minigame_buttons[5].x = center_x;
+    minigame_buttons[5].y = SCREEN_HEIGHT - 200; // Same position as Start Singing
+    minigame_buttons[5].width = button_width;
+    minigame_buttons[5].height = button_height;
+    minigame_buttons[5].text = "採收";
+    minigame_buttons[5].color = al_map_rgb(200, 150, 50);
+    minigame_buttons[5].hover_color = al_map_rgb(230, 180, 80);
+    minigame_buttons[5].text_color = al_map_rgb(255, 255, 255);
+    minigame_buttons[5].action_phase = MINIGAME_FLOWER;
+    minigame_buttons[5].is_hovered = false;
 }
 
 void render_minigame_flower(void) {
@@ -148,13 +175,19 @@ void render_minigame_flower(void) {
         al_draw_filled_rectangle(b->x, b->y, b->x + b->width, b->y + b->height, b->is_hovered ? b->hover_color : b->color);
         al_draw_text(font, b->text_color, b->x + b->width / 2, b->y + (b->height / 2) - (al_get_font_line_height(font) / 2), ALLEGRO_ALIGN_CENTER, b->text);
     }
-    // Start Singing button
+    // Start Singing button (show if not fully grown and not singing)
     if (seed_planted && !is_singing && flower_plant.growth_stage < songs_to_flower) {
         Button* b = &minigame_buttons[1];
         al_draw_filled_rectangle(b->x, b->y, b->x + b->width, b->y + b->height, b->is_hovered ? b->hover_color : b->color);
         al_draw_text(font, b->text_color, b->x + b->width / 2, b->y + (b->height / 2) - (al_get_font_line_height(font) / 2), ALLEGRO_ALIGN_CENTER, b->text);
     }
-    // Restart and Finish Singing buttons (shown together)
+    // Harvest button (show if fully grown and not singing)
+    else if (seed_planted && !is_singing && flower_plant.growth_stage >= songs_to_flower) {
+        Button* b = &minigame_buttons[5];
+        al_draw_filled_rectangle(b->x, b->y, b->x + b->width, b->y + b->height, b->is_hovered ? b->hover_color : b->color);
+        al_draw_text(font, b->text_color, b->x + b->width / 2, b->y + (b->height / 2) - (al_get_font_line_height(font) / 2), ALLEGRO_ALIGN_CENTER, b->text);
+    }
+    // Restart and Finish Singing buttons (shown together when singing)
     if (is_singing) {
         Button* b_restart = &minigame_buttons[2];
         al_draw_filled_rectangle(b_restart->x, b_restart->y, b_restart->x + b_restart->width, b_restart->y + b_restart->height, b_restart->is_hovered ? b_restart->hover_color : b_restart->color);
@@ -178,13 +211,13 @@ void render_minigame_flower(void) {
 }
 
 void handle_minigame_flower_input(ALLEGRO_EVENT ev) {
-    // Reset hover states for all buttons first
-    for (int i = 0; i < NUM_MINIGAME_FLOWER_BUTTONS; ++i) {
-        minigame_buttons[i].is_hovered = false;
-    }
-
     // Mouse movement for hover effects
     if (ev.type == ALLEGRO_EVENT_MOUSE_AXES) {
+        // Reset hover states for all buttons first, only on mouse movement
+        for (int i = 0; i < NUM_MINIGAME_FLOWER_BUTTONS; ++i) {
+            minigame_buttons[i].is_hovered = false;
+        }
+
         // Plant Seed
         if (!seed_planted && ev.mouse.x >= minigame_buttons[0].x && ev.mouse.x <= minigame_buttons[0].x + minigame_buttons[0].width &&
             ev.mouse.y >= minigame_buttons[0].y && ev.mouse.y <= minigame_buttons[0].y + minigame_buttons[0].height) {
@@ -195,6 +228,12 @@ void handle_minigame_flower_input(ALLEGRO_EVENT ev) {
                  ev.mouse.x >= minigame_buttons[1].x && ev.mouse.x <= minigame_buttons[1].x + minigame_buttons[1].width &&
                  ev.mouse.y >= minigame_buttons[1].y && ev.mouse.y <= minigame_buttons[1].y + minigame_buttons[1].height) {
             minigame_buttons[1].is_hovered = true;
+        }
+        // Harvest button
+        else if (seed_planted && !is_singing && flower_plant.growth_stage >= songs_to_flower &&
+                 ev.mouse.x >= minigame_buttons[5].x && ev.mouse.x <= minigame_buttons[5].x + minigame_buttons[5].width &&
+                 ev.mouse.y >= minigame_buttons[5].y && ev.mouse.y <= minigame_buttons[5].y + minigame_buttons[5].height) {
+            minigame_buttons[5].is_hovered = true;
         }
         // Restart and Finish Singing (when is_singing is true)
         else if (is_singing) {
@@ -228,7 +267,7 @@ void handle_minigame_flower_input(ALLEGRO_EVENT ev) {
             // Start Singing
             else if (seed_planted && !is_singing && flower_plant.growth_stage < songs_to_flower && minigame_buttons[1].is_hovered) {
                 is_singing = true;
-                // TODO: Add audio recording start logic here
+                start_audio_recording();
                 printf("Minigame: Start Singing button clicked. Audio recording should start.\n"); // Temporary feedback
                 button_clicked = true;
             }
@@ -236,14 +275,14 @@ void handle_minigame_flower_input(ALLEGRO_EVENT ev) {
             else if (is_singing) {
                 if (minigame_buttons[2].is_hovered) { // Restart
                     // For now, it just allows finishing again. Could reset timer if one existed.
-                    // TODO: Add audio recording restart logic here (e.g., discard current recording, start new one)
+                    restart_audio_recording();
                     printf("Minigame: Restart singing button clicked. Audio recording should restart.\n"); // Temporary feedback
                     // is_singing remains true
                     button_clicked = true;
                 }
                 else if (minigame_buttons[3].is_hovered) { // Finish Singing
                     is_singing = false;
-                    // TODO: Add audio recording stop and processing logic here
+                    stop_audio_recording();
                     printf("Minigame: Finish Singing button clicked. Audio recording should stop and be processed.\n"); // Temporary feedback
                     if (flower_plant.songs_sung < songs_to_flower) {
                         flower_plant.songs_sung++;
@@ -255,6 +294,16 @@ void handle_minigame_flower_input(ALLEGRO_EVENT ev) {
                     }
                     button_clicked = true;
                 }
+            }
+            // Harvest button
+            else if (seed_planted && !is_singing && flower_plant.growth_stage >= songs_to_flower && minigame_buttons[5].is_hovered) {
+                player.flowers_collected++;
+                flower_plant.songs_sung = 0;
+                flower_plant.growth_stage = 0;
+                seed_planted = false; // Go back to "Plant Seed" state
+                is_singing = false;
+                printf("DEBUG: Harvest button clicked. Flowers: %d\n", player.flowers_collected);
+                button_clicked = true;
             }
             // Exit button
             if (minigame_buttons[4].is_hovered) { // Check separately as it's always active

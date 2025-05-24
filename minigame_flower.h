@@ -4,7 +4,7 @@
 #include <allegro5/allegro.h>
 #include "types.h" // For Button, GamePhase, ALLEGRO_EVENT
 
-#define NUM_MINIGAME_FLOWER_BUTTONS 5 // Plant Seed, Start, Restart, Finish, Exit
+#define NUM_MINIGAME_FLOWER_BUTTONS 6 // Plant Seed, Start, Restart, Finish, Exit, Harvest
 
 // Structure to hold the state of the flower in the minigame
 typedef struct {

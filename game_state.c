@@ -5,7 +5,9 @@
 #include "boss.h"       // For init_bosses_by_archetype
 #include "projectile.h" // For init_projectiles
 #include "minigame_flower.h" // For the flower minigame
+#include "backpack.h"
 #include <allegro5/allegro_primitives.h> // For drawing rects/text
+#include <allegro5/allegro_image.h> // For image loading
 #include <stdio.h>      // For printf
 
 /**
@@ -224,5 +226,11 @@ void on_lottery_button_click() {
 }
 
 void on_backpack_button_click() {
-    printf("按鈕 [開啟背包] 已點擊 - 請在此處添加您的邏輯。\n");
+    game_phase = BACKPACK_SCREEN;
+    // Optionally, you can keep the printf for debugging or remove it.
+    // For now, let's keep it to confirm the function is called.
+    printf("按鈕 [開啟背包] 已點擊 - transitioning to BACKPACK_SCREEN.\n");
+    // Potentially, reset hover states for backpack buttons if they are initialized elsewhere
+    // For now, just changing the phase is the primary goal.
 }
+

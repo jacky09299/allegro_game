@@ -11,6 +11,7 @@ typedef enum {
     GROWTH,     // 養成階段
     BATTLE,     // 戰鬥階段
     MINIGAME_FLOWER, // 新增的小遊戲階段
+    BACKPACK_SCREEN, // 背包畫面階段
     EXIT        // 退出遊戲
 } GamePhase;
 
@@ -79,6 +80,7 @@ typedef struct {
     PlayerSkillIdentifier learned_skills[MAX_PLAYER_SKILLS]; // 已學習的技能列表
     int skill_cooldown_timers[MAX_PLAYER_SKILLS]; // 各技能的冷卻計時器 (幀)
     int normal_attack_cooldown_timer; // 普通攻擊冷卻計時器
+    int flowers_collected;      // 收集到的花朵數量
 } Player;
 
 // Boss 結構

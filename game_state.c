@@ -4,6 +4,7 @@
 #include "player.h"     // For init_player, init_player_knife, skill usage functions
 #include "boss.h"       // For init_bosses_by_archetype
 #include "projectile.h" // For init_projectiles
+#include "minigame_flower.h" // For the flower minigame
 #include <allegro5/allegro_primitives.h> // For drawing rects/text
 #include <stdio.h>      // For printf
 
@@ -210,7 +211,8 @@ void handle_battle_scene_input_actions(ALLEGRO_EVENT ev) {
 
 // --- 養成畫面按鈕點擊事件的處理函式 ---
 void on_minigame1_button_click() {
-    printf("按鈕 [進行小遊戲挑戰 1] 已點擊 - 請在此處添加您的邏輯。\n");
+    game_phase = MINIGAME_FLOWER;
+    init_minigame_flower(); // Initialize or reset the minigame state
 }
 
 void on_minigame2_button_click() {

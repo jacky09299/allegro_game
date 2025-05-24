@@ -8,9 +8,10 @@
 // 遊戲階段枚舉
 typedef enum {
     MENU,       // 主選單階段
-    EXIT,       // 退出遊戲
     GROWTH,     // 養成階段
-    BATTLE      // 戰鬥階段
+    BATTLE,     // 戰鬥階段
+    MINIGAME_FLOWER, // 新增的小遊戲階段
+    EXIT        // 退出遊戲
 } GamePhase;
 
 // 玩家技能標識符枚舉

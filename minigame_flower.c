@@ -211,13 +211,13 @@ void render_minigame_flower(void) {
 }
 
 void handle_minigame_flower_input(ALLEGRO_EVENT ev) {
-    // Reset hover states for all buttons first
-    for (int i = 0; i < NUM_MINIGAME_FLOWER_BUTTONS; ++i) {
-        minigame_buttons[i].is_hovered = false;
-    }
-
     // Mouse movement for hover effects
     if (ev.type == ALLEGRO_EVENT_MOUSE_AXES) {
+        // Reset hover states for all buttons first, only on mouse movement
+        for (int i = 0; i < NUM_MINIGAME_FLOWER_BUTTONS; ++i) {
+            minigame_buttons[i].is_hovered = false;
+        }
+
         // Plant Seed
         if (!seed_planted && ev.mouse.x >= minigame_buttons[0].x && ev.mouse.x <= minigame_buttons[0].x + minigame_buttons[0].width &&
             ev.mouse.y >= minigame_buttons[0].y && ev.mouse.y <= minigame_buttons[0].y + minigame_buttons[0].height) {

@@ -54,6 +54,9 @@ void init_game_systems_and_assets() {
         exit(-1);
     }       
 
+    // ADDED: Set display flag for software rendering
+    al_set_new_display_flags(ALLEGRO_SOFTWARE_RENDERER);
+
     // 6. display = al_create_display(...)
     display = al_create_display(SCREEN_WIDTH, SCREEN_HEIGHT);
     if (!display) {

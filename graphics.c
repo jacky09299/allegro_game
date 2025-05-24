@@ -21,6 +21,15 @@ void load_game_assets(void) {
     
     knife_sprite_asset = al_load_bitmap("assets/image/knife.png");
 
+    flower_image_asset = al_load_bitmap("assets/image/flower.png");
+    if (!flower_image_asset) {
+        fprintf(stderr, "Failed to load assets/image/flower.png. Trying root directory...\n");
+        flower_image_asset = al_load_bitmap("flower.png");
+        if (!flower_image_asset) {
+            fprintf(stderr, "Failed to load flower.png from root as well.\n");
+        }
+    }
+
     background_texture = create_background_tile_texture(100, 2, 2); 
 }
 
@@ -33,6 +42,7 @@ void destroy_game_assets(void) {
     if (boss_archetype_skillful_sprite_asset) al_destroy_bitmap(boss_archetype_skillful_sprite_asset);
     if (boss_archetype_berserker_sprite_asset) al_destroy_bitmap(boss_archetype_berserker_sprite_asset);
     if (knife_sprite_asset) al_destroy_bitmap(knife_sprite_asset);
+    if (flower_image_asset) al_destroy_bitmap(flower_image_asset);
     if (background_texture) al_destroy_bitmap(background_texture);
 }
 

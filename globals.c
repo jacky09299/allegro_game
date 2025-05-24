@@ -28,3 +28,4 @@ ALLEGRO_BITMAP *boss_archetype_tank_sprite_asset = NULL;
 ALLEGRO_BITMAP *boss_archetype_skillful_sprite_asset = NULL;
 ALLEGRO_BITMAP *boss_archetype_berserker_sprite_asset = NULL;
 ALLEGRO_BITMAP *knife_sprite_asset = NULL;
+ALLEGRO_BITMAP *flower_image_asset = NULL;

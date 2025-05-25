@@ -6,49 +6,47 @@
 #include <stdlib.h> // For rand()
 #include <time.h>   // For time() in srand()
 
+#ifdef _WIN32
+#include <windows.h>
+#include <mmsystem.h>
+#endif
+
 #include "globals.h"
 #include "minigame_flower.h"
 #include "types.h" // Included by globals.h or minigame_flower.h, good for clarity
 
-// Simulate sound being present for placeholder audio functions
-static bool simulated_sound_detected = true; 
+// Audio Recording Constants (common)
+#define AUDIO_BUFFER_SIZE (44100 * 2 * 35) // Approx 35 seconds of stereo audio at 44.1kHz, 16-bit. Using 2 for bytes per sample.
+#define AUDIO_SAMPLE_RATE 44100
+#define AUDIO_CHANNELS 1 // Mono
+#define AUDIO_BITS_PER_SAMPLE 16
 
-// Placeholder for starting audio recording
-static void start_audio_recording() {
-    printf("DEBUG: start_audio_recording() called\n");
-}
+// Static global variables for audio recording
+#ifdef _WIN32
+static HWAVEIN hWaveIn = NULL;
+static WAVEHDR waveHdr;
+static char* pWaveBuffer = NULL; // Actual buffer for waveInPrepareHeader
+static DWORD recordingStartTime = 0; // Windows specific time
+#else
+static time_t recordingStartTime_nonWin = 0; // For non-Windows time
+static char* pWaveBuffer_nonWin = NULL; // Placeholder buffer for non-Windows
+#endif
+static bool isActuallyRecording = false; // Common flag
+static bool displayPleaseSingMessage = false; // Common flag
+static float audioLengthSeconds = 0.0f; // Common flag
+static bool decibelsOkay = false; // Common flag
 
-// Forward declaration for stop_audio_recording
-static bool stop_audio_recording(void);
+// Test flags for non-Windows audio simulation
+static bool force_audio_too_short_for_test = false; 
+static bool force_audio_too_quiet_for_test = false;
 
-// Placeholder for restarting audio recording
-static void restart_audio_recording() {
-    printf("DEBUG: restart_audio_recording() called\n");
-    // Conceptual actions:
-    // stop_current_recording_without_processing(); // e.g. a new function or direct audio lib call
-    // clear_audio_buffer(); // e.g. a new function or direct audio lib call
-    // start_new_recording(); // e.g. a new function or direct audio lib call
-    // reset_singing_attempt_timer(); // if a timer existed
 
-    // For now, given other functions are placeholders, let's call them:
-    stop_audio_recording(); // Assuming this just stops, doesn't process for now
-    start_audio_recording(); // Assuming this just starts
-    printf("DEBUG: Audio recording conceptually restarted.\n");
-}
+// Forward declarations for audio functions
+static void prepare_audio_recording(void);
+static void start_actual_audio_recording(void);
+static bool stop_actual_audio_recording(void);
+static void cleanup_audio_recording(void);
 
-// Placeholder for stopping audio recording
-static bool stop_audio_recording() { // Modified to return bool
-    printf("DEBUG: stop_audio_recording() called\n");
-    // In a real scenario, you would analyze actual audio data here.
-    // For now, we use the simulated variable.
-    if (simulated_sound_detected) {
-        printf("DEBUG: Sound detected (simulated).\n");
-        return true;
-    } else {
-        printf("DEBUG: No sound detected (simulated).\n");
-        return false;
-    }
-}
 
 // Static global variables for the minigame
 static MinigameFlowerPlant flower_plant;
@@ -63,13 +61,25 @@ void init_minigame_flower(void) {
         srand(time(NULL)); // Initialize random seed
         minigame_srand_called = true;
     }
+    
+    // Reset test flags
+    force_audio_too_short_for_test = false;
+    force_audio_too_quiet_for_test = false;
+    
+    cleanup_audio_recording(); // Clean up any previous audio resources
+    prepare_audio_recording(); // Prepare audio for new session
+
     flower_plant.songs_sung = 0;
     flower_plant.growth_stage = 0;
     seed_planted = false;
     is_singing = false;
-    simulated_sound_detected = true; // Reset to default for testing
+    // simulated_sound_detected = true; // This should be removed or commented out
 
-    printf("DEBUG: Minigame Flower initialized/reset. simulated_sound_detected set to true.\n");
+    displayPleaseSingMessage = false;
+    audioLengthSeconds = 0.0f;
+    decibelsOkay = false;
+
+    printf("DEBUG: Minigame Flower initialized/reset.\n");
 
     float button_width = 200;
     float button_height = 50;
@@ -202,6 +212,15 @@ void render_minigame_flower(void) {
             }
         }
     }
+    
+    // Display "請唱歌" message if needed
+    if (displayPleaseSingMessage) {
+        al_draw_text(font, al_map_rgb(255, 100, 100), SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2 + 50, ALLEGRO_ALIGN_CENTER, "請唱歌 (至少30秒且夠大聲)");
+        // For debugging:
+        // al_draw_textf(font, al_map_rgb(200, 200, 200), SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2 + 80, ALLEGRO_ALIGN_CENTER, "錄音長度: %.2f s", audioLengthSeconds);
+        // al_draw_textf(font, al_map_rgb(200, 200, 200), SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2 + 110, ALLEGRO_ALIGN_CENTER, "聲音合格: %s", decibelsOkay ? "是" : "否");
+    }
+
 
     // Draw Buttons (conditionally)
     // Plant Seed button
@@ -302,48 +321,62 @@ void handle_minigame_flower_input(ALLEGRO_EVENT ev) {
             // Start Singing
             else if (seed_planted && !is_singing && flower_plant.growth_stage < songs_to_flower && minigame_buttons[1].is_hovered) {
                 is_singing = true;
-                start_audio_recording();
-                printf("Minigame: Start Singing button clicked. Audio recording should start.\n"); // Temporary feedback
+                // start_actual_audio_recording() is called below, no need for is_singing = true; twice
+                start_actual_audio_recording();
+                printf("Minigame: Start Singing button clicked. Actual audio recording should start.\n");
                 button_clicked = true;
             }
             // Restart or Finish Singing
             else if (is_singing) {
                 if (minigame_buttons[2].is_hovered) { // Restart
-                    // For now, it just allows finishing again. Could reset timer if one existed.
-                    restart_audio_recording();
-                    printf("Minigame: Restart singing button clicked. Audio recording should restart.\n"); // Temporary feedback
-                    // is_singing remains true
+#ifdef _WIN32
+                    if (hWaveIn) { // Ensure device is open before trying to stop/unprepare
+                        waveInStop(hWaveIn);
+                        MMRESULT resetResult = waveInReset(hWaveIn);
+                        if (resetResult != MMSYSERR_NOERROR) {
+                            fprintf(stderr, "waveInReset failed with error %d\n", resetResult);
+                        }
+                        if (waveHdr.dwFlags & WHDR_PREPARED) {
+                           MMRESULT unprepareResult = waveInUnprepareHeader(hWaveIn, &waveHdr, sizeof(WAVEHDR));
+                           if (unprepareResult != MMSYSERR_NOERROR) {
+                               fprintf(stderr, "waveInUnprepareHeader failed in restart: %d\n", unprepareResult);
+                           }
+                        }
+                    }
+#else
+                    // For non-Windows, stopping and starting is simulated by just calling start again
+                    // which resets timers and flags.
+                    printf("DEBUG: Non-Windows Restart: Simulating stop and restart.\n");
+#endif
+                    start_actual_audio_recording(); // This will re-prepare and start (or simulate for non-Win)
+                    printf("Minigame: Restart singing button clicked. Audio recording restarted.\n");
                     button_clicked = true;
                 }
                 else if (minigame_buttons[3].is_hovered) { // Finish Singing
                     is_singing = false;
-                    // bool sound_was_detected = stop_audio_recording(); // Old call
-                    bool sound_was_detected = stop_audio_recording(); // New call
+                    bool sound_was_valid = stop_actual_audio_recording();
 
                     printf("Minigame: Finish Singing button clicked. Audio recording stopped.\n"); 
                        
-                    if (sound_was_detected) {
+                    if (sound_was_valid) {
                         if (flower_plant.songs_sung < songs_to_flower) {
                             flower_plant.songs_sung++;
                         }
-                        // Growth stage directly maps to songs sung, up to max
                         flower_plant.growth_stage = flower_plant.songs_sung; 
                         if (flower_plant.growth_stage > songs_to_flower) {
                             flower_plant.growth_stage = songs_to_flower;
                         }
-                        printf("DEBUG: Song counted, growth updated.\n");
+                        printf("DEBUG: Valid song recorded, growth updated.\n");
                     } else {
-                        printf("DEBUG: No sound detected. Song not counted, plant does not grow.\n");
-                        // Optionally, set a flag here to display a message to the user on screen
-                        // e.g., show_no_sound_message = true; (and handle in render)
+                        printf("DEBUG: Invalid sound detected (too short or too quiet). Song not counted.\n");
+                        // displayPleaseSingMessage should be true if stop_actual_audio_recording returned false
                     }
                     button_clicked = true;
                 }
             }
             // Harvest button
             else if (seed_planted && !is_singing && flower_plant.growth_stage >= songs_to_flower && minigame_buttons[5].is_hovered) {
-                // New logic with devil flower chance
-                if (rand() % 10 == 0) { // 10% chance for a devil flower
+                if (rand() % 2 == 0) { // 50% chance for a devil flower
                     player.devil_flowers_collected++;
                     printf("DEBUG: Harvested a Devil Flower! Total: %d\n", player.devil_flowers_collected);
                 } else {
@@ -353,15 +386,18 @@ void handle_minigame_flower_input(ALLEGRO_EVENT ev) {
 
                 flower_plant.songs_sung = 0;
                 flower_plant.growth_stage = 0;
-                seed_planted = false; // Go back to "Plant Seed" state
+                seed_planted = false; 
                 is_singing = false;
+                // No need to call init_minigame_flower here, just reset state for replanting
                 button_clicked = true;
             }
             // Exit button
-            if (minigame_buttons[4].is_hovered) { // Check separately as it's always active
-                game_phase = GROWTH; // Change game phase
-                init_minigame_flower(); // Reset minigame state for next time
-                button_clicked = true; // Technically a click, though phase changes
+            if (minigame_buttons[4].is_hovered) { 
+                cleanup_audio_recording(); // Clean up audio resources before exiting
+                game_phase = GROWTH; 
+                // init_minigame_flower(); // No, this will be called when entering minigame again.
+                                         // cleanup is important here.
+                button_clicked = true; 
             }
 
             if (button_clicked) {
@@ -384,3 +420,241 @@ void update_minigame_flower(void) {
     // Currently no continuous updates needed for this minigame logic
     // (e.g., animations, timers that run without player input)
 }
+
+// --- Audio Recording Functions Implementation ---
+
+#ifdef _WIN32
+// Windows-specific implementation
+static void prepare_audio_recording(void) {
+    if (pWaveBuffer == NULL) {
+        pWaveBuffer = (char*)malloc(AUDIO_BUFFER_SIZE);
+        if (pWaveBuffer == NULL) {
+            fprintf(stderr, "Failed to allocate audio buffer.\n");
+            return; 
+        }
+    }
+
+    WAVEFORMATEX wfx;
+    wfx.wFormatTag = WAVE_FORMAT_PCM;
+    wfx.nChannels = AUDIO_CHANNELS;
+    wfx.nSamplesPerSec = AUDIO_SAMPLE_RATE;
+    wfx.nAvgBytesPerSec = AUDIO_SAMPLE_RATE * AUDIO_CHANNELS * (AUDIO_BITS_PER_SAMPLE / 8);
+    wfx.nBlockAlign = AUDIO_CHANNELS * (AUDIO_BITS_PER_SAMPLE / 8);
+    wfx.wBitsPerSample = AUDIO_BITS_PER_SAMPLE;
+    wfx.cbSize = 0;
+
+    MMRESULT result = waveInOpen(&hWaveIn, WAVE_MAPPER, &wfx, 0, 0, CALLBACK_NULL);
+    if (result != MMSYSERR_NOERROR) {
+        fprintf(stderr, "waveInOpen failed with error %d\n", result);
+        if (pWaveBuffer) {
+            free(pWaveBuffer);
+            pWaveBuffer = NULL;
+        }
+        hWaveIn = NULL; 
+        return;
+    }
+    printf("DEBUG: Windows Audio recording prepared. Device opened.\n");
+}
+
+static void start_actual_audio_recording(void) {
+    if (hWaveIn == NULL) {
+        prepare_audio_recording(); 
+        if (hWaveIn == NULL) {
+             fprintf(stderr, "Audio device not available, cannot start recording.\n");
+            return;
+        }
+    }
+    
+    if (waveHdr.dwFlags & WHDR_PREPARED) {
+        waveInUnprepareHeader(hWaveIn, &waveHdr, sizeof(WAVEHDR));
+    }
+    
+    ZeroMemory(&waveHdr, sizeof(WAVEHDR));
+    waveHdr.lpData = pWaveBuffer;
+    waveHdr.dwBufferLength = AUDIO_BUFFER_SIZE;
+    waveHdr.dwFlags = 0;
+
+    if (pWaveBuffer == NULL) return;
+    ZeroMemory(pWaveBuffer, AUDIO_BUFFER_SIZE);
+
+    if (waveInPrepareHeader(hWaveIn, &waveHdr, sizeof(WAVEHDR)) != MMSYSERR_NOERROR) {
+        fprintf(stderr, "waveInPrepareHeader failed.\n"); return;
+    }
+    if (waveInAddBuffer(hWaveIn, &waveHdr, sizeof(WAVEHDR)) != MMSYSERR_NOERROR) {
+        fprintf(stderr, "waveInAddBuffer failed.\n"); waveInUnprepareHeader(hWaveIn, &waveHdr, sizeof(WAVEHDR)); return;
+    }
+    if (waveInStart(hWaveIn) != MMSYSERR_NOERROR) {
+        fprintf(stderr, "waveInStart failed.\n"); waveInUnprepareHeader(hWaveIn, &waveHdr, sizeof(WAVEHDR)); return;
+    }
+
+    isActuallyRecording = true;
+    recordingStartTime = timeGetTime();
+    displayPleaseSingMessage = false;
+    audioLengthSeconds = 0.0f;
+    decibelsOkay = false;
+    printf("DEBUG: Windows Actual audio recording started.\n");
+}
+
+static bool stop_actual_audio_recording(void) {
+    if (!isActuallyRecording || hWaveIn == NULL) {
+        isActuallyRecording = false; 
+        return false;
+    }
+
+    DWORD recordingStopTime = timeGetTime();
+    waveInReset(hWaveIn); 
+    isActuallyRecording = false;
+
+    audioLengthSeconds = (recordingStopTime - recordingStartTime) / 1000.0f;
+    printf("DEBUG: Windows Recording stopped. Recorded for %.2f seconds.\n", audioLengthSeconds);
+
+    bool validationSuccess = true;
+    if (audioLengthSeconds < 30.0f) { // Real 30s check for Windows
+        printf("DEBUG: Windows Recording too short (%.2f s < 30s).\n", audioLengthSeconds);
+        displayPleaseSingMessage = true;
+        validationSuccess = false;
+    } else {
+         printf("DEBUG: Windows Recording length OK (%.2f s).\n", audioLengthSeconds);
+    }
+
+    short* samples = (short*)pWaveBuffer;
+    long max_abs_sample = 0;
+    DWORD num_samples_recorded = waveHdr.dwBytesRecorded / (AUDIO_BITS_PER_SAMPLE / 8);
+
+    if (num_samples_recorded == 0 && validationSuccess) {
+        printf("DEBUG: Windows No audio data recorded.\n");
+        displayPleaseSingMessage = true;
+        decibelsOkay = false;
+        validationSuccess = false;
+    } else if (validationSuccess) { // Only check decibels if length was okay
+        for (DWORD i = 0; i < num_samples_recorded; ++i) {
+            if (abs(samples[i]) > max_abs_sample) {
+                max_abs_sample = abs(samples[i]);
+            }
+        }
+        printf("DEBUG: Windows Max absolute sample value: %ld\n", max_abs_sample);
+        if (max_abs_sample < 1000) { 
+            printf("DEBUG: Windows Recording too quiet (max_abs_sample: %ld < 1000).\n", max_abs_sample);
+            displayPleaseSingMessage = true;
+            decibelsOkay = false;
+            validationSuccess = false;
+        } else {
+            printf("DEBUG: Windows Recording volume OK.\n");
+            decibelsOkay = true;
+        }
+    }
+
+    if (waveHdr.dwFlags & WHDR_PREPARED) {
+        waveInUnprepareHeader(hWaveIn, &waveHdr, sizeof(WAVEHDR));
+    }
+    
+    if (!validationSuccess) printf("DEBUG: Windows Audio validation FAILED.\n");
+    else printf("DEBUG: Windows Audio validation SUCCEEDED.\n");
+    return validationSuccess;
+}
+
+static void cleanup_audio_recording(void) {
+    printf("DEBUG: Windows cleanup_audio_recording() called.\n");
+    if (isActuallyRecording && hWaveIn != NULL) {
+        waveInReset(hWaveIn);
+        isActuallyRecording = false;
+    }
+    if (hWaveIn != NULL) {
+        if (waveHdr.dwFlags & WHDR_PREPARED) {
+            waveInUnprepareHeader(hWaveIn, &waveHdr, sizeof(WAVEHDR));
+        }
+        waveInClose(hWaveIn);
+        hWaveIn = NULL;
+    }
+    if (pWaveBuffer != NULL) {
+        free(pWaveBuffer);
+        pWaveBuffer = NULL;
+    }
+}
+
+#else 
+// Non-Windows placeholder implementation
+
+static void prepare_audio_recording(void) {
+    printf("DEBUG: Non-Windows prepare_audio_recording() called (placeholder).\n");
+    // Allocate a dummy buffer if needed for non-Win logic, or just for consistency
+    if (pWaveBuffer_nonWin == NULL) {
+        pWaveBuffer_nonWin = (char*)malloc(AUDIO_BUFFER_SIZE); // Using common constant
+        if (pWaveBuffer_nonWin == NULL) {
+            fprintf(stderr, "Failed to allocate dummy audio buffer for non-Windows.\n");
+        } else {
+             memset(pWaveBuffer_nonWin, 0, AUDIO_BUFFER_SIZE); // Initialize if you want, using memset
+        }
+    }
+}
+
+static void start_actual_audio_recording(void) {
+    isActuallyRecording = true;
+    recordingStartTime_nonWin = time(NULL); // Use time_t for non-Windows
+    displayPleaseSingMessage = false;
+    audioLengthSeconds = 0.0f;
+    decibelsOkay = false;
+    // Reset test flags each time we start, so tests are specific
+    force_audio_too_short_for_test = false;
+    force_audio_too_quiet_for_test = false;
+    printf("DEBUG: Non-Windows Actual audio recording started (placeholder).\n");
+}
+
+static bool stop_actual_audio_recording(void) {
+    if (!isActuallyRecording) {
+        return false;
+    }
+    isActuallyRecording = false;
+
+    audioLengthSeconds = (float)(time(NULL) - recordingStartTime_nonWin);
+    printf("DEBUG: Non-Windows Recording stopped. Simulated duration: %.2f seconds.\n", audioLengthSeconds);
+
+    // Test flag for "too short"
+    if (force_audio_too_short_for_test) {
+        printf("DEBUG: Non-Windows SIMULATING ERROR: Recording too short.\n");
+        displayPleaseSingMessage = true;
+        audioLengthSeconds = 2.0f; // Simulate a short duration for display
+        decibelsOkay = false; // Should also fail decibels if too short
+        return false;
+    }
+    
+    // Actual length check for non-Windows (can be different from Windows for testing)
+    // For testing point 3 (Happy Path), this should pass.
+    // For testing point 4 (Too Short actual test), we'll set force_audio_too_short_for_test.
+    if (audioLengthSeconds < 3.0f && !force_audio_too_quiet_for_test) { // Using 3s for non-Win tests, not 30s
+        printf("DEBUG: Non-Windows Recording actually too short (%.2f s < 3s).\n", audioLengthSeconds);
+        displayPleaseSingMessage = true;
+        decibelsOkay = false; // if too short, decibels don't matter or are also bad
+        return false;
+    }
+
+
+    // Test flag for "too quiet"
+    if (force_audio_too_quiet_for_test) {
+        printf("DEBUG: Non-Windows SIMULATING ERROR: Recording too quiet.\n");
+        displayPleaseSingMessage = true;
+        decibelsOkay = false;
+        // Ensure length is fine for this specific test case
+        if (!force_audio_too_short_for_test && audioLengthSeconds < 3.0f) audioLengthSeconds = 3.5f;
+        return false;
+    }
+    
+    // If not forced to fail, assume success for volume for now.
+    // A more sophisticated simulation could check a variable.
+    printf("DEBUG: Non-Windows Recording volume OK (simulated).\n");
+    decibelsOkay = true;
+    
+    printf("DEBUG: Non-Windows Audio validation SUCCEEDED (simulated by default).\n");
+    return true;
+}
+
+static void cleanup_audio_recording(void) {
+    printf("DEBUG: Non-Windows cleanup_audio_recording() called (placeholder).\n");
+    if (pWaveBuffer_nonWin != NULL) {
+        free(pWaveBuffer_nonWin);
+        pWaveBuffer_nonWin = NULL;
+    }
+    isActuallyRecording = false; // Just in case
+}
+
+#endif

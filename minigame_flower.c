@@ -3,24 +3,51 @@
 #include <allegro5/allegro_ttf.h> // Though font is global, good practice
 #include <stdio.h> // For printf during development
 #include <math.h> // For sin and cos
+#include <stdlib.h> // For rand()
+#include <time.h>   // For time() in srand()
 
 #include "globals.h"
 #include "minigame_flower.h"
-#include "types.h" // Included by globals.h or minigame_flower.h, but good for clarity
+#include "types.h" // Included by globals.h or minigame_flower.h, good for clarity
+
+// Simulate sound being present for placeholder audio functions
+static bool simulated_sound_detected = true; 
 
 // Placeholder for starting audio recording
 static void start_audio_recording() {
     printf("DEBUG: start_audio_recording() called\n");
 }
 
+// Forward declaration for stop_audio_recording
+static bool stop_audio_recording(void);
+
 // Placeholder for restarting audio recording
 static void restart_audio_recording() {
     printf("DEBUG: restart_audio_recording() called\n");
+    // Conceptual actions:
+    // stop_current_recording_without_processing(); // e.g. a new function or direct audio lib call
+    // clear_audio_buffer(); // e.g. a new function or direct audio lib call
+    // start_new_recording(); // e.g. a new function or direct audio lib call
+    // reset_singing_attempt_timer(); // if a timer existed
+
+    // For now, given other functions are placeholders, let's call them:
+    stop_audio_recording(); // Assuming this just stops, doesn't process for now
+    start_audio_recording(); // Assuming this just starts
+    printf("DEBUG: Audio recording conceptually restarted.\n");
 }
 
 // Placeholder for stopping audio recording
-static void stop_audio_recording() {
+static bool stop_audio_recording() { // Modified to return bool
     printf("DEBUG: stop_audio_recording() called\n");
+    // In a real scenario, you would analyze actual audio data here.
+    // For now, we use the simulated variable.
+    if (simulated_sound_detected) {
+        printf("DEBUG: Sound detected (simulated).\n");
+        return true;
+    } else {
+        printf("DEBUG: No sound detected (simulated).\n");
+        return false;
+    }
 }
 
 // Static global variables for the minigame
@@ -29,12 +56,20 @@ static Button minigame_buttons[NUM_MINIGAME_FLOWER_BUTTONS];
 static bool seed_planted = false;
 static bool is_singing = false;
 static const int songs_to_flower = 8;
+static bool minigame_srand_called = false; // Ensure srand is called only once for this minigame context
 
 void init_minigame_flower(void) {
+    if (!minigame_srand_called) {
+        srand(time(NULL)); // Initialize random seed
+        minigame_srand_called = true;
+    }
     flower_plant.songs_sung = 0;
     flower_plant.growth_stage = 0;
     seed_planted = false;
     is_singing = false;
+    simulated_sound_detected = true; // Reset to default for testing
+
+    printf("DEBUG: Minigame Flower initialized/reset. simulated_sound_detected set to true.\n");
 
     float button_width = 200;
     float button_height = 50;
@@ -282,27 +317,44 @@ void handle_minigame_flower_input(ALLEGRO_EVENT ev) {
                 }
                 else if (minigame_buttons[3].is_hovered) { // Finish Singing
                     is_singing = false;
-                    stop_audio_recording();
-                    printf("Minigame: Finish Singing button clicked. Audio recording should stop and be processed.\n"); // Temporary feedback
-                    if (flower_plant.songs_sung < songs_to_flower) {
-                        flower_plant.songs_sung++;
-                    }
-                    // Growth stage directly maps to songs sung, up to max
-                    flower_plant.growth_stage = flower_plant.songs_sung; 
-                    if (flower_plant.growth_stage > songs_to_flower) {
-                        flower_plant.growth_stage = songs_to_flower;
+                    // bool sound_was_detected = stop_audio_recording(); // Old call
+                    bool sound_was_detected = stop_audio_recording(); // New call
+
+                    printf("Minigame: Finish Singing button clicked. Audio recording stopped.\n"); 
+                       
+                    if (sound_was_detected) {
+                        if (flower_plant.songs_sung < songs_to_flower) {
+                            flower_plant.songs_sung++;
+                        }
+                        // Growth stage directly maps to songs sung, up to max
+                        flower_plant.growth_stage = flower_plant.songs_sung; 
+                        if (flower_plant.growth_stage > songs_to_flower) {
+                            flower_plant.growth_stage = songs_to_flower;
+                        }
+                        printf("DEBUG: Song counted, growth updated.\n");
+                    } else {
+                        printf("DEBUG: No sound detected. Song not counted, plant does not grow.\n");
+                        // Optionally, set a flag here to display a message to the user on screen
+                        // e.g., show_no_sound_message = true; (and handle in render)
                     }
                     button_clicked = true;
                 }
             }
             // Harvest button
             else if (seed_planted && !is_singing && flower_plant.growth_stage >= songs_to_flower && minigame_buttons[5].is_hovered) {
-                player.flowers_collected++;
+                // New logic with devil flower chance
+                if (rand() % 10 == 0) { // 10% chance for a devil flower
+                    player.devil_flowers_collected++;
+                    printf("DEBUG: Harvested a Devil Flower! Total: %d\n", player.devil_flowers_collected);
+                } else {
+                    player.flowers_collected++;
+                    printf("DEBUG: Harvested a regular Flower. Total: %d\n", player.flowers_collected);
+                }
+
                 flower_plant.songs_sung = 0;
                 flower_plant.growth_stage = 0;
                 seed_planted = false; // Go back to "Plant Seed" state
                 is_singing = false;
-                printf("DEBUG: Harvest button clicked. Flowers: %d\n", player.flowers_collected);
                 button_clicked = true;
             }
             // Exit button

@@ -19,15 +19,19 @@ void load_game_assets(void) {
     
     boss_archetype_berserker_sprite_asset = al_load_bitmap("assets/image/boss3.png");
     
-    knife_sprite_asset = al_load_bitmap("assets/image/knife.png");
+    knife_sprite_asset = al_load_bitmap("assets/image/knife.png"); // Assuming this path is correct as per existing code
+    if (!knife_sprite_asset) {
+        fprintf(stderr, "Error: Failed to load assets/image/knife.png\n");
+    }
 
-    flower_image_asset = al_load_bitmap("assets/image/flower.png");
+    flower_image_asset = al_load_bitmap("assets/images/flower.png"); // Corrected path
     if (!flower_image_asset) {
-        fprintf(stderr, "Failed to load assets/image/flower.png. Trying root directory...\n");
-        flower_image_asset = al_load_bitmap("flower.png");
-        if (!flower_image_asset) {
-            fprintf(stderr, "Failed to load flower.png from root as well.\n");
-        }
+        fprintf(stderr, "Error: Failed to load assets/images/flower.png\n");
+    }
+
+    devil_flower_image_asset = al_load_bitmap("assets/images/devil_flower.png"); // Added devil flower
+    if (!devil_flower_image_asset) {
+        fprintf(stderr, "Error: Failed to load assets/images/devil_flower.png\n");
     }
 
     background_texture = create_background_tile_texture(100, 2, 2); 
@@ -43,6 +47,7 @@ void destroy_game_assets(void) {
     if (boss_archetype_berserker_sprite_asset) al_destroy_bitmap(boss_archetype_berserker_sprite_asset);
     if (knife_sprite_asset) al_destroy_bitmap(knife_sprite_asset);
     if (flower_image_asset) al_destroy_bitmap(flower_image_asset);
+    if (devil_flower_image_asset) al_destroy_bitmap(devil_flower_image_asset); // Added devil flower
     if (background_texture) al_destroy_bitmap(background_texture);
 }
 

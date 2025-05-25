@@ -90,8 +90,44 @@ void render_backpack_screen(void) {
     al_draw_text(font, al_map_rgb(150, 150, 150), back_button_x, back_button_y + 20, ALLEGRO_ALIGN_CENTER, "(ESC also works)");
 
 
-    // Reminder: flower.png is missing. The code above uses a placeholder.
+    // Reminder: flower.png is missing. The code above uses a placeholder. // This comment is now outdated as loading is handled in graphics.c
     // Player struct and font are from globals.h
+
+    // Display Devil Flowers (if any) - New block
+    if (player.devil_flowers_collected > 0) {
+        // Display in the second cell of the first row
+        float item_cell_x = grid_start_x + 1 * (cell_size + grid_padding); 
+        float item_cell_y = grid_start_y;
+
+        if (devil_flower_image_asset) { // Use the new asset variable
+            float img_w = al_get_bitmap_width(devil_flower_image_asset);
+            float img_h = al_get_bitmap_height(devil_flower_image_asset);
+            if (img_w > 0 && img_h > 0) {
+                al_draw_scaled_bitmap(devil_flower_image_asset,
+                                      0, 0, img_w, img_h, // Source bitmap x, y, width, height
+                                      item_cell_x + 5.0f, item_cell_y + 5.0f, // Destination x, y
+                                      cell_size - 10.0f, cell_size - 10.0f, // Destination width, height
+                                      0); // Flags
+            } else { // Bitmap loaded but has invalid dimensions
+                al_draw_filled_rectangle(item_cell_x + 5, item_cell_y + 5,
+                                         item_cell_x + cell_size - 5, item_cell_y + cell_size - 5,
+                                         al_map_rgb(255, 0, 0)); 
+                al_draw_text(font, al_map_rgb(255,255,255), item_cell_x + cell_size / 2, item_cell_y + cell_size / 2 - 10, ALLEGRO_ALIGN_CENTER, "IMG_ERR");
+            }
+        } else { // devil_flower_image_asset is NULL (failed to load)
+            al_draw_filled_rectangle(item_cell_x + 5, item_cell_y + 5,
+                                     item_cell_x + cell_size - 5, item_cell_y + cell_size - 5,
+                                     al_map_rgb(255, 100, 100)); // Placeholder
+            al_draw_text(font, al_map_rgb(0,0,0), item_cell_x + cell_size / 2, item_cell_y + cell_size / 2 - 10, ALLEGRO_ALIGN_CENTER, "NO_IMG");
+        }
+        
+        // Draw quantity text for devil flowers
+        char quantity_text_devil[10];
+        sprintf(quantity_text_devil, "x%d", player.devil_flowers_collected);
+        al_draw_text(font, al_map_rgb(255, 255, 255), 
+                     item_cell_x + cell_size - 5, item_cell_y + cell_size - al_get_font_line_height(font) - 5, 
+                     ALLEGRO_ALIGN_RIGHT, quantity_text_devil);
+    }
 }
 
 void handle_backpack_screen_input(ALLEGRO_EVENT ev) {

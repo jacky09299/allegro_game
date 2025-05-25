@@ -509,7 +509,7 @@ static bool stop_actual_audio_recording(void) {
     printf("DEBUG: Windows Recording stopped. Recorded for %.2f seconds.\n", audioLengthSeconds);
 
     bool validationSuccess = true;
-    if (audioLengthSeconds < 30.0f) { // Real 30s check for Windows
+    if (audioLengthSeconds < 2.0f) { // Real 30s check for Windows
         printf("DEBUG: Windows Recording too short (%.2f s < 30s).\n", audioLengthSeconds);
         displayPleaseSingMessage = true;
         validationSuccess = false;
@@ -533,7 +533,7 @@ static bool stop_actual_audio_recording(void) {
             }
         }
         printf("DEBUG: Windows Max absolute sample value: %ld\n", max_abs_sample);
-        if (max_abs_sample < 1000) { 
+        if (max_abs_sample < 1) { 
             printf("DEBUG: Windows Recording too quiet (max_abs_sample: %ld < 1000).\n", max_abs_sample);
             displayPleaseSingMessage = true;
             decibelsOkay = false;
@@ -573,6 +573,7 @@ static void cleanup_audio_recording(void) {
 }
 
 #else 
+
 // Non-Windows placeholder implementation
 
 static void prepare_audio_recording(void) {

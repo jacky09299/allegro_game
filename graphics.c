@@ -24,14 +24,14 @@ void load_game_assets(void) {
         fprintf(stderr, "Error: Failed to load assets/image/knife.png\n");
     }
 
-    flower_image_asset = al_load_bitmap("assets/images/flower.png"); // Corrected path
+    flower_image_asset = al_load_bitmap("assets/image/flower.png"); // Corrected path
     if (!flower_image_asset) {
-        fprintf(stderr, "Error: Failed to load assets/images/flower.png\n");
+        fprintf(stderr, "Error: Failed to load assets/image/flower.png\n");
     }
 
-    devil_flower_image_asset = al_load_bitmap("assets/images/devil_flower.png"); // Added devil flower
+    devil_flower_image_asset = al_load_bitmap("assets/image/devil_flower.png"); // Added devil flower
     if (!devil_flower_image_asset) {
-        fprintf(stderr, "Error: Failed to load assets/images/devil_flower.png\n");
+        fprintf(stderr, "Error: Failed to load assets/image/devil_flower.png\n");
     }
 
     background_texture = create_background_tile_texture(100, 2, 2); 

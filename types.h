@@ -81,6 +81,7 @@ typedef struct {
     int skill_cooldown_timers[MAX_PLAYER_SKILLS]; // 各技能的冷卻計時器 (幀)
     int normal_attack_cooldown_timer; // 普通攻擊冷卻計時器
     int flowers_collected;      // 收集到的花朵數量
+    int devil_flowers_collected; // New field for devil flowers
 } Player;
 
 // Boss 結構

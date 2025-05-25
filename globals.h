@@ -36,5 +36,6 @@ extern ALLEGRO_BITMAP *boss_archetype_skillful_sprite_asset;
 extern ALLEGRO_BITMAP *boss_archetype_berserker_sprite_asset;
 extern ALLEGRO_BITMAP *knife_sprite_asset;
 extern ALLEGRO_BITMAP *flower_image_asset;
+extern ALLEGRO_BITMAP *devil_flower_image_asset; // New for Devil Flower
 
 #endif // GLOBALS_H

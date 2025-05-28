@@ -12,8 +12,8 @@
 #endif
 
 #include "globals.h"
-#include "minigame_flower.h"
-#include "types.h" // Included by globals.h or minigame_flower.h, good for clarity
+#include "minigame1.h"
+#include "types.h" // Included by globals.h or minigame1.h, good for clarity
 
 // Audio Recording Constants (common)
 #define AUDIO_BUFFER_SIZE (44100 * 2 * 35) // Approx 35 seconds of stereo audio at 44.1kHz, 16-bit. Using 2 for bytes per sample.
@@ -50,13 +50,13 @@ static void cleanup_audio_recording(void);
 
 // Static global variables for the minigame
 static MinigameFlowerPlant flower_plant;
-static Button minigame_buttons[NUM_MINIGAME_FLOWER_BUTTONS];
+static Button minigame_buttons[NUM_MINIGAME1_BUTTONS];
 static bool seed_planted = false;
 static bool is_singing = false;
 static const int songs_to_flower = 8;
 static bool minigame_srand_called = false; // Ensure srand is called only once for this minigame context
 
-void init_minigame_flower(void) {
+void init_minigame1(void) {
     if (!minigame_srand_called) {
         srand(time(NULL)); // Initialize random seed
         minigame_srand_called = true;
@@ -94,7 +94,7 @@ void init_minigame_flower(void) {
     minigame_buttons[0].color = al_map_rgb(70, 170, 70);
     minigame_buttons[0].hover_color = al_map_rgb(100, 200, 100);
     minigame_buttons[0].text_color = al_map_rgb(255, 255, 255);
-    minigame_buttons[0].action_phase = MINIGAME_FLOWER; // Or a dummy/specific action
+    minigame_buttons[0].action_phase = MINIGAME1; // Or a dummy/specific action
     minigame_buttons[0].is_hovered = false;
 
     // Button 1: "開始唱歌" (Start Singing)
@@ -106,7 +106,7 @@ void init_minigame_flower(void) {
     minigame_buttons[1].color = al_map_rgb(70, 70, 170);
     minigame_buttons[1].hover_color = al_map_rgb(100, 100, 200);
     minigame_buttons[1].text_color = al_map_rgb(255, 255, 255);
-    minigame_buttons[1].action_phase = MINIGAME_FLOWER;
+    minigame_buttons[1].action_phase = MINIGAME1;
     minigame_buttons[1].is_hovered = false;
 
     // Button 2: "重新開始" (Restart) - Appears with "Finish Singing"
@@ -118,7 +118,7 @@ void init_minigame_flower(void) {
     minigame_buttons[2].color = al_map_rgb(170, 70, 70);
     minigame_buttons[2].hover_color = al_map_rgb(200, 100, 100);
     minigame_buttons[2].text_color = al_map_rgb(255, 255, 255);
-    minigame_buttons[2].action_phase = MINIGAME_FLOWER;
+    minigame_buttons[2].action_phase = MINIGAME1;
     minigame_buttons[2].is_hovered = false;
 
     // Button 3: "完成歌唱" (Finish Singing) - Appears with "Restart"
@@ -130,7 +130,7 @@ void init_minigame_flower(void) {
     minigame_buttons[3].color = al_map_rgb(70, 170, 170);
     minigame_buttons[3].hover_color = al_map_rgb(100, 200, 200);
     minigame_buttons[3].text_color = al_map_rgb(255, 255, 255);
-    minigame_buttons[3].action_phase = MINIGAME_FLOWER;
+    minigame_buttons[3].action_phase = MINIGAME1;
     minigame_buttons[3].is_hovered = false;
     
     // Button 4: "離開小遊戲" (Exit Minigame)
@@ -154,11 +154,11 @@ void init_minigame_flower(void) {
     minigame_buttons[5].color = al_map_rgb(200, 150, 50);
     minigame_buttons[5].hover_color = al_map_rgb(230, 180, 80);
     minigame_buttons[5].text_color = al_map_rgb(255, 255, 255);
-    minigame_buttons[5].action_phase = MINIGAME_FLOWER;
+    minigame_buttons[5].action_phase = MINIGAME1;
     minigame_buttons[5].is_hovered = false;
 }
 
-void render_minigame_flower(void) {
+void render_minigame1(void) {
     al_clear_to_color(al_map_rgb(50, 50, 70)); // Dark blue-grey background
 
     float plant_base_y = SCREEN_HEIGHT * 0.65f; // Adjusted for more space for flower
@@ -264,11 +264,11 @@ void render_minigame_flower(void) {
     }
 }
 
-void handle_minigame_flower_input(ALLEGRO_EVENT ev) {
+void handle_minigame1_input(ALLEGRO_EVENT ev) {
     // Mouse movement for hover effects
     if (ev.type == ALLEGRO_EVENT_MOUSE_AXES) {
         // Reset hover states for all buttons first, only on mouse movement
-        for (int i = 0; i < NUM_MINIGAME_FLOWER_BUTTONS; ++i) {
+        for (int i = 0; i < NUM_MINIGAME1_BUTTONS; ++i) {
             minigame_buttons[i].is_hovered = false;
         }
 
@@ -377,31 +377,31 @@ void handle_minigame_flower_input(ALLEGRO_EVENT ev) {
             // Harvest button
             else if (seed_planted && !is_singing && flower_plant.growth_stage >= songs_to_flower && minigame_buttons[5].is_hovered) {
                 if (rand() % 2 == 0) { // 50% chance for a devil flower
-                    player.devil_flowers_collected++;
-                    printf("DEBUG: Harvested a Devil Flower! Total: %d\n", player.devil_flowers_collected);
+                    player.item_quantities[1]++;
+                    printf("DEBUG: Harvested a Devil Flower! Total: %d\n", player.item_quantities[1]);
                 } else {
-                    player.flowers_collected++;
-                    printf("DEBUG: Harvested a regular Flower. Total: %d\n", player.flowers_collected);
+                    player.item_quantities[0]++;
+                    printf("DEBUG: Harvested a regular Flower. Total: %d\n", player.item_quantities[0]);
                 }
 
                 flower_plant.songs_sung = 0;
                 flower_plant.growth_stage = 0;
                 seed_planted = false; 
                 is_singing = false;
-                // No need to call init_minigame_flower here, just reset state for replanting
+                // No need to call init_minigame1 here, just reset state for replanting
                 button_clicked = true;
             }
             // Exit button
             if (minigame_buttons[4].is_hovered) { 
                 cleanup_audio_recording(); // Clean up audio resources before exiting
                 game_phase = GROWTH; 
-                // init_minigame_flower(); // No, this will be called when entering minigame again.
+                // init_minigame1(); // No, this will be called when entering minigame again.
                                          // cleanup is important here.
                 button_clicked = true; 
             }
 
             if (button_clicked) {
-                for (int i = 0; i < NUM_MINIGAME_FLOWER_BUTTONS; ++i) {
+                for (int i = 0; i < NUM_MINIGAME1_BUTTONS; ++i) {
                     minigame_buttons[i].is_hovered = false; // Reset hover on click
                 }
             }
@@ -411,20 +411,18 @@ void handle_minigame_flower_input(ALLEGRO_EVENT ev) {
     else if (ev.type == ALLEGRO_EVENT_KEY_DOWN) {
         if (ev.keyboard.keycode == ALLEGRO_KEY_ESCAPE) {
             game_phase = GROWTH;
-            init_minigame_flower(); // Reset for next time
+            init_minigame1(); // Reset for next time
         }
     }
 }
 
-void update_minigame_flower(void) {
+void update_minigame1(void) {
     // Currently no continuous updates needed for this minigame logic
     // (e.g., animations, timers that run without player input)
 }
 
 // --- Audio Recording Functions Implementation ---
 
-#ifdef _WIN32
-// Windows-specific implementation
 static void prepare_audio_recording(void) {
     if (pWaveBuffer == NULL) {
         pWaveBuffer = (char*)malloc(AUDIO_BUFFER_SIZE);
@@ -509,7 +507,7 @@ static bool stop_actual_audio_recording(void) {
     printf("DEBUG: Windows Recording stopped. Recorded for %.2f seconds.\n", audioLengthSeconds);
 
     bool validationSuccess = true;
-    if (audioLengthSeconds < 2.0f) { // Real 30s check for Windows
+    if (audioLengthSeconds < 1.0f) { // Real 30s check for Windows
         printf("DEBUG: Windows Recording too short (%.2f s < 30s).\n", audioLengthSeconds);
         displayPleaseSingMessage = true;
         validationSuccess = false;
@@ -571,91 +569,3 @@ static void cleanup_audio_recording(void) {
         pWaveBuffer = NULL;
     }
 }
-
-#else 
-
-// Non-Windows placeholder implementation
-
-static void prepare_audio_recording(void) {
-    printf("DEBUG: Non-Windows prepare_audio_recording() called (placeholder).\n");
-    // Allocate a dummy buffer if needed for non-Win logic, or just for consistency
-    if (pWaveBuffer_nonWin == NULL) {
-        pWaveBuffer_nonWin = (char*)malloc(AUDIO_BUFFER_SIZE); // Using common constant
-        if (pWaveBuffer_nonWin == NULL) {
-            fprintf(stderr, "Failed to allocate dummy audio buffer for non-Windows.\n");
-        } else {
-             memset(pWaveBuffer_nonWin, 0, AUDIO_BUFFER_SIZE); // Initialize if you want, using memset
-        }
-    }
-}
-
-static void start_actual_audio_recording(void) {
-    isActuallyRecording = true;
-    recordingStartTime_nonWin = time(NULL); // Use time_t for non-Windows
-    displayPleaseSingMessage = false;
-    audioLengthSeconds = 0.0f;
-    decibelsOkay = false;
-    // Reset test flags each time we start, so tests are specific
-    force_audio_too_short_for_test = false;
-    force_audio_too_quiet_for_test = false;
-    printf("DEBUG: Non-Windows Actual audio recording started (placeholder).\n");
-}
-
-static bool stop_actual_audio_recording(void) {
-    if (!isActuallyRecording) {
-        return false;
-    }
-    isActuallyRecording = false;
-
-    audioLengthSeconds = (float)(time(NULL) - recordingStartTime_nonWin);
-    printf("DEBUG: Non-Windows Recording stopped. Simulated duration: %.2f seconds.\n", audioLengthSeconds);
-
-    // Test flag for "too short"
-    if (force_audio_too_short_for_test) {
-        printf("DEBUG: Non-Windows SIMULATING ERROR: Recording too short.\n");
-        displayPleaseSingMessage = true;
-        audioLengthSeconds = 2.0f; // Simulate a short duration for display
-        decibelsOkay = false; // Should also fail decibels if too short
-        return false;
-    }
-    
-    // Actual length check for non-Windows (can be different from Windows for testing)
-    // For testing point 3 (Happy Path), this should pass.
-    // For testing point 4 (Too Short actual test), we'll set force_audio_too_short_for_test.
-    if (audioLengthSeconds < 3.0f && !force_audio_too_quiet_for_test) { // Using 3s for non-Win tests, not 30s
-        printf("DEBUG: Non-Windows Recording actually too short (%.2f s < 3s).\n", audioLengthSeconds);
-        displayPleaseSingMessage = true;
-        decibelsOkay = false; // if too short, decibels don't matter or are also bad
-        return false;
-    }
-
-
-    // Test flag for "too quiet"
-    if (force_audio_too_quiet_for_test) {
-        printf("DEBUG: Non-Windows SIMULATING ERROR: Recording too quiet.\n");
-        displayPleaseSingMessage = true;
-        decibelsOkay = false;
-        // Ensure length is fine for this specific test case
-        if (!force_audio_too_short_for_test && audioLengthSeconds < 3.0f) audioLengthSeconds = 3.5f;
-        return false;
-    }
-    
-    // If not forced to fail, assume success for volume for now.
-    // A more sophisticated simulation could check a variable.
-    printf("DEBUG: Non-Windows Recording volume OK (simulated).\n");
-    decibelsOkay = true;
-    
-    printf("DEBUG: Non-Windows Audio validation SUCCEEDED (simulated by default).\n");
-    return true;
-}
-
-static void cleanup_audio_recording(void) {
-    printf("DEBUG: Non-Windows cleanup_audio_recording() called (placeholder).\n");
-    if (pWaveBuffer_nonWin != NULL) {
-        free(pWaveBuffer_nonWin);
-        pWaveBuffer_nonWin = NULL;
-    }
-    isActuallyRecording = false; // Just in case
-}
-
-#endif

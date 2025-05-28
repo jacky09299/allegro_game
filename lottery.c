@@ -2,17 +2,17 @@
 #include <allegro5/allegro_font.h>
 #include <allegro5/allegro_ttf.h> 
 #include "globals.h"
-#include "backpack.h"
+#include "lottery.h"
 #include "types.h"
 
-void init_backpack(void) {
+void init_lottery(void) {
 }
 
-void render_backpack(void) {
+void render_lottery(void) {
     al_clear_to_color(al_map_rgb(50, 50, 70)); // Dark blue-grey background
 }
 
-void handle_backpack_input(ALLEGRO_EVENT ev) {
+void handle_lottery_input(ALLEGRO_EVENT ev) {
     if (ev.type == ALLEGRO_EVENT_KEY_DOWN) {
         if (ev.keyboard.keycode == ALLEGRO_KEY_ESCAPE) {
             game_phase = GROWTH;
@@ -20,5 +20,5 @@ void handle_backpack_input(ALLEGRO_EVENT ev) {
     }
 }
 
-void update_backpack(void) {
+void update_lottery(void) {
 }

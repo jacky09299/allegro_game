@@ -8,11 +8,13 @@
 // 遊戲階段枚舉
 typedef enum {
     MENU,       // 主選單階段
+    EXIT,       // 退出遊戲
     GROWTH,     // 養成階段
-    BATTLE,     // 戰鬥階段
-    MINIGAME_FLOWER, // 新增的小遊戲階段
-    BACKPACK_SCREEN, // 背包畫面階段
-    EXIT        // 退出遊戲
+    MINIGAME1,  // 小遊戲1
+    MINIGAME2,  // 小遊戲2
+    LOTTERY,      // 抽獎
+    BACKPACK,   // 背包
+    BATTLE      // 戰鬥階段
 } GamePhase;
 
 // 玩家技能標識符枚舉
@@ -23,8 +25,13 @@ typedef enum {
     SKILL_LIGHTNING_BOLT,   // 閃電鏈
     SKILL_HEAL,             // 治療術
     SKILL_FIREBALL          // 火球術
-    // MAX_SKILL_ENUM_VALUE should be the last one if used for array sizing directly
 } PlayerSkillIdentifier;
+
+// 玩家背包裡的道具
+typedef enum {
+    ITEM_HEALTH_POTION,
+    ITEM_BOMB
+} ItemType;
 
 // Boss 技能標識符枚舉
 typedef enum {
@@ -80,8 +87,7 @@ typedef struct {
     PlayerSkillIdentifier learned_skills[MAX_PLAYER_SKILLS]; // 已學習的技能列表
     int skill_cooldown_timers[MAX_PLAYER_SKILLS]; // 各技能的冷卻計時器 (幀)
     int normal_attack_cooldown_timer; // 普通攻擊冷卻計時器
-    int flowers_collected;      // 收集到的花朵數量
-    int devil_flowers_collected; // New field for devil flowers
+    int item_quantities[NUM_ITEMS]; //記錄每種道具的數量
 } Player;
 
 // Boss 結構
@@ -134,5 +140,14 @@ typedef struct {
     // 追蹤在此次揮砍中已擊中的 Boss，避免重複傷害
     bool hit_bosses_this_swing[MAX_BOSSES]; 
 } PlayerKnifeState;
+
+//逃跑門結構
+typedef struct {
+    float x, y;
+    float width, height;
+    bool is_active;
+    bool is_counting_down;
+    int countdown_frames; // 倒數用的 frame 數
+} EscapeGate;
 
 #endif // TYPES_H

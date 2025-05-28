@@ -1,12 +1,10 @@
 #include "player.h"
-#include <math.h>
-#include <stdio.h>
-#include <allegro5/keyboard.h>
-#include <allegro5/allegro.h>
-#include "globals.h"
-#include "config.h"
-#include "projectile.h"
-#include "utils.h"
+#include "globals.h"   // For player, player_knife, bosses, camera_x, camera_y
+#include "config.h"    // For various player and skill constants
+#include "projectile.h"// For spawn_projectile
+#include "utils.h"     // For calculate_distance_between_points, get_knife_path_point
+#include <stdio.h>     // For printf
+#include <math.h>      // For cos, sin, fmin
 
 /**
  * 初始化玩家的屬性。
@@ -48,41 +46,6 @@ void init_player_knife() {
     player_knife.path_progress_timer = 0.0f;
     for (int i = 0; i < MAX_BOSSES; ++i) {
         player_knife.hit_bosses_this_swing[i] = false;
-    }
-}
-
-void handle_player_battle_movement(bool keys[]) {
-    player.v_x = 0; player.v_y = 0;
-    if (keys[ALLEGRO_KEY_W] || keys[ALLEGRO_KEY_UP]) player.v_y -= 1.0f;
-    if (keys[ALLEGRO_KEY_S] || keys[ALLEGRO_KEY_DOWN]) player.v_y += 1.0f;
-    if (keys[ALLEGRO_KEY_A] || keys[ALLEGRO_KEY_LEFT]) player.v_x -= 1.0f;
-    if (keys[ALLEGRO_KEY_D] || keys[ALLEGRO_KEY_RIGHT]) player.v_x += 1.0f;
-
-    if (player.v_x != 0 || player.v_y != 0) {
-        float magnitude = sqrtf(player.v_x * player.v_x + player.v_y * player.v_y);
-        player.v_x = (player.v_x / magnitude) * player.speed;
-        player.v_y = (player.v_y / magnitude) * player.speed;
-    }
-}
-
-void handle_player_battle_aim(int mouse_x, int mouse_y) {
-    float player_screen_center_x = SCREEN_WIDTH / 2.0f;
-    float player_screen_center_y = SCREEN_HEIGHT / 2.0f;
-    player.facing_angle = atan2(mouse_y - player_screen_center_y, mouse_x - player_screen_center_x);
-}
-
-void player_process_battle_input_event(ALLEGRO_EVENT ev) {
-    if (ev.type == ALLEGRO_EVENT_KEY_DOWN) {
-        switch (ev.keyboard.keycode) {
-            case ALLEGRO_KEY_J: break; // J is normal attack, handled by mouse click now
-            case ALLEGRO_KEY_K: player_use_water_attack(); break;
-            case ALLEGRO_KEY_L: player_use_ice_shard(); break;
-            case ALLEGRO_KEY_U: player_use_lightning_bolt(); break;
-            case ALLEGRO_KEY_I: player_use_heal(); break;
-            case ALLEGRO_KEY_O: player_use_fireball(); break;
-        }
-    } else if (ev.type == ALLEGRO_EVENT_MOUSE_BUTTON_DOWN && ev.mouse.button == 1) {
-        player_perform_normal_attack();
     }
 }
 
@@ -209,10 +172,6 @@ void update_player_character() {
         if (player.skill_cooldown_timers[i] > 0) {
             player.skill_cooldown_timers[i]--; 
         }
-    }
-    
-    if (player.normal_attack_cooldown_timer > 0) { // Added line
-        player.normal_attack_cooldown_timer--;
     }
 }
 

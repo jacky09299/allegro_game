@@ -8,10 +8,10 @@
 #include <math.h>       // For M_PI, atan2, cos, sin
 
 /**
- * @brief 設定 Boss 的屬性、圖像資源和特定行為參數。
+ * 設定 Boss 的屬性、圖像資源和特定行為參數。
  */
 void configure_boss_stats_and_assets(Boss* b, BossArchetype archetype, int difficulty_tier, int boss_id_for_cooldown_randomness) {
-    b->max_hp = 180 + difficulty_tier * 90;
+    b->max_hp = 60 + difficulty_tier * 30;
     b->strength = 10 + difficulty_tier * 4;
     b->speed = 1.8f + difficulty_tier * 0.05f;
     b->defense = 7 + difficulty_tier * 2;
@@ -61,7 +61,7 @@ void configure_boss_stats_and_assets(Boss* b, BossArchetype archetype, int diffi
 }
 
 /**
- * @brief 根據預設的原型數量初始化所有 Boss。
+ * 根據預設的原型數量初始化所有 Boss。
  */
 void init_bosses_by_archetype() {
     const int num_tanks = 3;
@@ -122,7 +122,7 @@ void init_bosses_by_archetype() {
 }
 
 /**
- * @brief Boss 評估當前狀況並執行相應的動作。
+ * Boss 評估當前狀況並執行相應的動作。
  */
 void boss_evaluate_and_execute_action(Boss* b) {
     if (!b->is_alive) return; 
@@ -191,7 +191,7 @@ void boss_evaluate_and_execute_action(Boss* b) {
 }
 
 /**
- * @brief 更新特定 Boss 角色的狀態。
+ * 更新特定 Boss 角色的狀態。
  */
 void update_boss_character(Boss* b) {
     if (!b->is_alive) { 

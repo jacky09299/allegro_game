@@ -8,7 +8,7 @@
 #include <math.h>       // For floor, cos, sin
 
 /**
- * @brief 載入遊戲圖像資源。
+ * 載入遊戲圖像資源。
  */
 void load_game_assets(void) {
     player_sprite_asset = al_load_bitmap("assets/image/player.png");
@@ -19,26 +19,13 @@ void load_game_assets(void) {
     
     boss_archetype_berserker_sprite_asset = al_load_bitmap("assets/image/boss3.png");
     
-    knife_sprite_asset = al_load_bitmap("assets/image/knife.png"); // Assuming this path is correct as per existing code
-    if (!knife_sprite_asset) {
-        fprintf(stderr, "Error: Failed to load assets/image/knife.png\n");
-    }
-
-    flower_image_asset = al_load_bitmap("assets/image/flower.png"); // Corrected path
-    if (!flower_image_asset) {
-        fprintf(stderr, "Error: Failed to load assets/image/flower.png\n");
-    }
-
-    devil_flower_image_asset = al_load_bitmap("assets/image/devil_flower.png"); // Added devil flower
-    if (!devil_flower_image_asset) {
-        fprintf(stderr, "Error: Failed to load assets/image/devil_flower.png\n");
-    }
+    knife_sprite_asset = al_load_bitmap("assets/image/knife.png");
 
     background_texture = create_background_tile_texture(100, 2, 2); 
 }
 
 /**
- * @brief 釋放遊戲圖像資源。
+ * 釋放遊戲圖像資源。
  */
 void destroy_game_assets(void) {
     if (player_sprite_asset) al_destroy_bitmap(player_sprite_asset);
@@ -46,14 +33,12 @@ void destroy_game_assets(void) {
     if (boss_archetype_skillful_sprite_asset) al_destroy_bitmap(boss_archetype_skillful_sprite_asset);
     if (boss_archetype_berserker_sprite_asset) al_destroy_bitmap(boss_archetype_berserker_sprite_asset);
     if (knife_sprite_asset) al_destroy_bitmap(knife_sprite_asset);
-    if (flower_image_asset) al_destroy_bitmap(flower_image_asset);
-    if (devil_flower_image_asset) al_destroy_bitmap(devil_flower_image_asset); // Added devil flower
     if (background_texture) al_destroy_bitmap(background_texture);
 }
 
 
 /**
- * @brief 創建一個可重複平鋪的背景紋理。
+ * 創建一個可重複平鋪的背景紋理。
  */
 ALLEGRO_BITMAP* create_background_tile_texture(int tile_size, int num_tiles_w, int num_tiles_h) {
     ALLEGRO_BITMAP* bg = al_create_bitmap(tile_size * num_tiles_w, tile_size * num_tiles_h);
@@ -78,7 +63,7 @@ ALLEGRO_BITMAP* create_background_tile_texture(int tile_size, int num_tiles_w, i
 }
 
 /**
- * @brief 渲染戰鬥場景。
+ * 渲染戰鬥場景。
  */
 void render_battle_scene() {
     al_clear_to_color(al_map_rgb(10, 10, 10)); 
@@ -238,7 +223,7 @@ void render_battle_scene() {
 
 
 /**
- * @brief 渲染玩家的刀子攻擊動畫。
+ * 渲染玩家的刀子攻擊動畫。
  */
 void render_player_knife() {
     if (!player_knife.active || !knife_sprite_asset) {

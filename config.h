@@ -44,6 +44,9 @@
 #define PLAYER_FIREBALL_LIFESPAN (FPS * 2.5) // 火球術持續時間 (幀)
 #define PLAYER_FIREBALL_SKILL_COOLDOWN (FPS * 6) // 火球術技能冷卻時間 (幀)
 
+// 道具最大數量
+#define NUM_ITEMS 5
+
 // Boss 技能常數
 #define BOSS_MELEE_PRIMARY_BASE_RANGE 80.0f // Boss 近戰主技能基礎範圍
 #define BOSS_RANGED_SPECIAL_BASE_DAMAGE 20  // Boss 遠程特殊技能基礎傷害
@@ -63,6 +66,6 @@
 #define PLAYER_NORMAL_ATTACK_COOLDOWN (FPS * 0.3f) // 玩家普攻冷卻時間 (幀) (例如 1 秒)
 #define KNIFE_DAMAGE_BASE 15                // 刀子基礎傷害 (會加上玩家力量)
 
-#define MAX_GROWTH_BUTTONS 4            // 養成畫面按鈕數量
+#define MAX_GROWTH_BUTTONS 5            // 養成畫面按鈕數量
 
 #endif // CONFIG_H

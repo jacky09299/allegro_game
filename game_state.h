@@ -8,12 +8,10 @@ void init_growth_buttons(void);
 
 void render_main_menu(void);
 void render_growth_screen(void);
-void render_backpack_screen(void);
 
 void handle_main_menu_input(ALLEGRO_EVENT ev);
 void handle_growth_screen_input(ALLEGRO_EVENT ev);
 void handle_battle_scene_input_actions(ALLEGRO_EVENT ev); // Could also be in input.h/c
-void handle_backpack_screen_input(ALLEGRO_EVENT ev);
 
 // Growth button actions
 void on_minigame1_button_click(void);

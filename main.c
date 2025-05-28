@@ -18,104 +18,41 @@
 #include "projectile.h"
 #include "game_state.h"
 #include "graphics.h"
-#include "minigame_flower.h" // Added for the flower minigame
+#include "escape_gate.h"
+#include "minigame1.h"
+#include "minigame2.h"
+#include "lottery.h"
 #include "backpack.h"
-// No need to include utils.h here if only other modules use it
-
 /**
- * @brief 初始化遊戲所需的 Allegro 系統、資源和遊戲物件。
+ * 初始化遊戲所需的 Allegro 系統、資源和遊戲物件。
  */
 void init_game_systems_and_assets() {
-    // 1. al_init()
-    if (!al_init()) {
-        fprintf(stderr, "Failed to initialize Allegro!\n");
-        exit(-1);
-    }
+    al_init(); 
     srand(time(NULL)); 
 
-    // 2. al_init_primitives_addon()
-    if (!al_init_primitives_addon()) {
-        fprintf(stderr, "Failed to initialize primitives addon!\n");
-        exit(-1);
-    }
-    // 3. al_init_image_addon()
-    if (!al_init_image_addon()) {
-        fprintf(stderr, "Failed to initialize image addon!\n");
-        exit(-1);
-    }     
-    // 4. al_init_font_addon()
-    if (!al_init_font_addon()) {
-        fprintf(stderr, "Failed to initialize font addon!\n");
-        exit(-1);
-    }      
-    // 5. al_init_ttf_addon()
-    if (!al_init_ttf_addon()) {
-        fprintf(stderr, "Failed to initialize TTF addon!\n");
-        exit(-1);
-    }       
+    al_init_font_addon();      
+    al_init_ttf_addon();       
+    al_init_primitives_addon();
+    al_init_image_addon();     
+    al_install_keyboard();     
+    al_install_mouse();        
 
-    // 6. display = al_create_display(...)
     display = al_create_display(SCREEN_WIDTH, SCREEN_HEIGHT);
-    if (!display) {
-        fprintf(stderr, "Failed to create display!\n");
-        exit(-1);
-    }
     al_set_window_title(display, "遊戲"); 
 
-    // 7. al_install_keyboard()
-    if (!al_install_keyboard()) {
-        fprintf(stderr, "Failed to install keyboard!\n");
-        al_destroy_display(display);
-        exit(-1);
-    }     
-    // 8. al_install_mouse()
-    if (!al_install_mouse()) {
-        fprintf(stderr, "Failed to install mouse!\n");
-        al_destroy_display(display);
-        exit(-1);
-    }        
-
-    // 9. font = al_load_ttf_font(...)
     font = al_load_ttf_font("assets/font/JasonHandwriting3.ttf", 20, 0); 
-    if (!font) {
-        fprintf(stderr, "載入 TTF 字體失敗。將使用內建字體。\n");
-        font = al_create_builtin_font(); 
-        if (!font) {
-            fprintf(stderr, "創建內建字體失敗。\n"); 
-            al_destroy_display(display);
-            exit(-1);
-        }
-    }
 
-    // 10. event_queue = al_create_event_queue()
     event_queue = al_create_event_queue();
-    if (!event_queue) {
-        fprintf(stderr, "Failed to create event_queue!\n");
-        al_destroy_display(display); 
-        al_destroy_font(font); 
-        exit(-1);
-    }
-
-    // 11. timer = al_create_timer(...)
     timer = al_create_timer(1.0 / FPS); 
-    if (!timer) {
-        fprintf(stderr, "Failed to create timer!\n");
-        al_destroy_event_queue(event_queue);
-        al_destroy_display(display);
-        al_destroy_font(font);
-        exit(-1);
-    }
 
-    // 12. All al_register_event_source(...) calls.
     al_register_event_source(event_queue, al_get_display_event_source(display));    
     al_register_event_source(event_queue, al_get_keyboard_event_source());   
     al_register_event_source(event_queue, al_get_mouse_event_source());      
     al_register_event_source(event_queue, al_get_timer_event_source(timer));     
 
-    // 13. The rest of the function
     for (int i = 0; i < ALLEGRO_KEY_MAX; i++) keys[i] = false;
 
-    load_game_assets(); 
+    load_game_assets(); //載入圖片
     
     init_player();                
     init_player_knife();
@@ -123,16 +60,17 @@ void init_game_systems_and_assets() {
     init_projectiles();                    
     init_menu_buttons();                   
     init_growth_buttons();
+    init_escape_gate();
     game_phase = MENU;                     
 
     al_start_timer(timer); 
 }
 
 /**
- * @brief 關閉遊戲系統並釋放已分配的資源。
+ * 關閉遊戲系統並釋放已分配的資源。
  */
 void shutdown_game_systems_and_assets() {
-    destroy_game_assets(); // Moved asset destruction to graphics.c
+    destroy_game_assets(); 
 
     al_destroy_font(font);
     al_destroy_timer(timer);
@@ -143,13 +81,11 @@ void shutdown_game_systems_and_assets() {
     al_shutdown_ttf_addon();
     al_shutdown_primitives_addon();
     al_shutdown_image_addon();
-    // al_uninstall_keyboard(); // Optional, Allegro handles shutdown
-    // al_uninstall_mouse();    // Optional
 }
 
 
 /**
- * @brief 遊戲主函數。
+ * 遊戲主函數。
  */
 int main() {
     init_game_systems_and_assets(); 
@@ -160,13 +96,14 @@ int main() {
         ALLEGRO_EVENT ev;
         al_wait_for_event(event_queue, &ev); 
 
-        if (ev.type == ALLEGRO_EVENT_KEY_DOWN) {
+        if (ev.type == ALLEGRO_EVENT_KEY_DOWN) { //按鍵列表中被按下的按鍵設為true
             keys[ev.keyboard.keycode] = true;
-        } else if (ev.type == ALLEGRO_EVENT_KEY_UP) {
+        } else if (ev.type == ALLEGRO_EVENT_KEY_UP) { //按鍵列表中被按下的按鍵設為false
             keys[ev.keyboard.keycode] = false;
         }
 
-        if (ev.timer.source == timer) {
+        //每 1/FPS 秒執行一次
+        if (ev.timer.source == timer) { 
             needs_redraw = true; 
             if (game_phase == BATTLE) { 
                 player.v_x = 0; player.v_y = 0; 
@@ -185,13 +122,16 @@ int main() {
                     player.normal_attack_cooldown_timer--;
                 }
 
+                // 更新玩家、boss、攻擊、視角
                 update_player_character(); 
                 update_player_knife();
                 for (int i = 0; i < MAX_BOSSES; ++i) { 
                     update_boss_character(&bosses[i]); 
                 }
                 update_active_projectiles(); 
-                update_game_camera();        
+                update_game_camera();
+                update_escape_gate();
+                        
 
                 if (player.hp <= 0) { 
                     printf("遊戲結束 - 你被擊敗了！\n");
@@ -205,25 +145,50 @@ int main() {
                         break; 
                     }
                 }
-                if (all_bosses_defeated_this_round && MAX_BOSSES > 0) { // Ensure there were bosses to defeat
-                    printf("勝利 - 所有 Boss 都被擊敗了！\n");
+                if (all_bosses_defeated_this_round && MAX_BOSSES > 0) { // 戰鬥階段勝利判斷
                     int money_earned = 500 * MAX_BOSSES; 
                     player.money += money_earned; 
-                    printf("玩家獲得了 %d 金幣！現在總共有 %d 金幣。\n", money_earned, player.money);
-                    game_phase = MENU; 
-                    for (int i = 0; i < 3; ++i) { menu_buttons[i].is_hovered = false; }
+
+                    // 進入下一天
+                    current_day++;
+                    day_time = 1;
+                    game_phase = GROWTH;
+
+                    // 關閉 escape gate 狀態（以免殘留）
+                    escape_gate.is_active = false;
+                    escape_gate.is_counting_down = false;
+                    escape_gate.countdown_frames = 0;
+
+                    // 重設 UI 狀態
+                    for (int i = 0; i < 3; ++i) {
+                        menu_buttons[i].is_hovered = false;
+                    }
+                    for (int i = 0; i < MAX_GROWTH_BUTTONS; ++i) {
+                        growth_buttons[i].is_hovered = false;
+                    }
+                    // 顯示訊息（可畫在畫面上，或加 audio）
+                    snprintf(growth_message, sizeof(growth_message), "勝利！獲得了 %d 金幣", money_earned);
+                    growth_message_timer = 180; // 顯示 3 秒
                 }
             }
-            // Update logic for MINIGAME_FLOWER
-            if (game_phase == MINIGAME_FLOWER) {
-                update_minigame_flower();
+            if (game_phase == MINIGAME1) {
+                update_minigame1();
+            }
+            if (game_phase == MINIGAME2) {
+                update_minigame2();
+            }
+            if (game_phase == LOTTERY) {
+                update_lottery();
+            }
+            if (game_phase == BACKPACK) {
+                update_backpack();
             }
         } 
-        else if (ev.type == ALLEGRO_EVENT_DISPLAY_CLOSE) { 
+        else if (ev.type == ALLEGRO_EVENT_DISPLAY_CLOSE) { //按視窗叉叉，關閉遊戲
             game_is_running = false; 
         } 
-        else if (ev.type == ALLEGRO_EVENT_MOUSE_AXES) { 
-             if (game_phase == BATTLE) { 
+        else if (ev.type == ALLEGRO_EVENT_MOUSE_AXES) { //偵測到滑鼠移動時執行
+             if (game_phase == BATTLE) { //更新玩家面向角度
                 float player_screen_center_x = SCREEN_WIDTH / 2.0f;
                 float player_screen_center_y = SCREEN_HEIGHT / 2.0f;
                 player.facing_angle = atan2(ev.mouse.y - player_screen_center_y, ev.mouse.x - player_screen_center_x); 
@@ -231,20 +196,26 @@ int main() {
                  handle_main_menu_input(ev);
             } else if (game_phase == GROWTH) {
                  handle_growth_screen_input(ev);
-            } else if (game_phase == MINIGAME_FLOWER) { // Added input handling for MINIGAME_FLOWER
-                handle_minigame_flower_input(ev);
-            } else if (game_phase == BACKPACK_SCREEN) { handle_backpack_screen_input(ev); }
+            } else if (game_phase == MINIGAME1) {
+                 handle_minigame1_input(ev);
+            } else if (game_phase == MINIGAME2) {
+                 handle_minigame2_input(ev);
+            } else if (game_phase == LOTTERY) {
+                 handle_lottery_input(ev);
+            } else if (game_phase == BACKPACK) {
+                 handle_backpack_input(ev);
+            }
         }
         else { 
             switch (game_phase) {
                 case MENU: handle_main_menu_input(ev); break;
                 case GROWTH: handle_growth_screen_input(ev); break;
                 case BATTLE: handle_battle_scene_input_actions(ev); break;
-                case MINIGAME_FLOWER: // Added event handling for MINIGAME_FLOWER
-                    handle_minigame_flower_input(ev);
-                    break;
-                case BACKPACK_SCREEN: handle_backpack_screen_input(ev); break;
-                default: break; // Should not happen
+                case MINIGAME1: handle_minigame1_input(ev); break;
+                case MINIGAME2: handle_minigame2_input(ev); break;
+                case LOTTERY: handle_lottery_input(ev); break;
+                case BACKPACK: handle_backpack_input(ev); break;
+                default: break;
             }
         }
 
@@ -253,12 +224,15 @@ int main() {
             switch (game_phase) {
                 case MENU: render_main_menu(); break;
                 case GROWTH: render_growth_screen(); break;
-                case BATTLE: render_battle_scene(); break;
-                case MINIGAME_FLOWER: // Added rendering for MINIGAME_FLOWER
-                    render_minigame_flower();
+                case BATTLE: 
+                    render_battle_scene(); 
+                    render_escape_gate(font); 
                     break;
-                case BACKPACK_SCREEN: render_backpack_screen(); break;
-                default: break; // Should not happen
+                case MINIGAME1: render_minigame1(); break;
+                case MINIGAME2: render_minigame2(); break;
+                case LOTTERY: render_lottery(); break;
+                case BACKPACK: render_backpack(); break;
+                default: break;
             }
             al_flip_display(); 
         }

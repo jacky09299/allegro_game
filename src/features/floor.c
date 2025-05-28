@@ -1,6 +1,6 @@
-#include "floor.h"
-#include "globals.h" // For SCREEN_WIDTH, SCREEN_HEIGHT (potentially, or pass as params if preferred)
-#include "config.h"  // For SCREEN_WIDTH, SCREEN_HEIGHT if not in globals directly for this context
+#include "include/floor.h"
+#include "include/globals.h" // For SCREEN_WIDTH, SCREEN_HEIGHT (potentially, or pass as params if preferred)
+#include "include/config.h"  // For SCREEN_WIDTH, SCREEN_HEIGHT if not in globals directly for this context
 #include <allegro5/allegro_primitives.h>
 #include <stdio.h>
 #include <math.h> // For floor

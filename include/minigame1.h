@@ -2,7 +2,7 @@
 #define MINIGAME1_H
 
 #include <allegro5/allegro.h>
-#include "types.h" // For Button, GamePhase, ALLEGRO_EVENT
+#include "include/types.h" // For Button, GamePhase, ALLEGRO_EVENT
 
 #define NUM_MINIGAME1_BUTTONS 6 // Plant Seed, Start, Restart, Finish, Exit, Harvest
 

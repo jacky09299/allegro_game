@@ -1,10 +1,10 @@
-#include "player.h"
-#include "globals.h"   // For player, player_knife, bosses, camera_x, camera_y, font
-#include "config.h"    // For various player and skill constants
-#include "projectile.h"// For spawn_projectile
-#include "utils.h"     // For calculate_distance_between_points, get_knife_path_point
-#include "player_attack.h" // For player attack functions
-#include "asset_manager.h" // For load_bitmap_once
+#include "include/player.h"
+#include "include/globals.h"   // For player, player_knife, bosses, camera_x, camera_y, font
+#include "include/config.h"    // For various player and skill constants
+#include "include/projectile.h"// For spawn_projectile
+#include "include/utils.h"     // For calculate_distance_between_points, get_knife_path_point
+#include "include/player_attack.h" // For player attack functions
+#include "include/asset_manager.h" // For load_bitmap_once
 #include <stdio.h>     // For printf, fprintf, stderr
 #include <math.h>      // For cos, sin, fmin, atan2, sqrtf
 #include <allegro5/allegro_primitives.h> // For al_draw_filled_circle, al_draw_line

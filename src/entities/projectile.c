@@ -1,7 +1,7 @@
-#include "projectile.h"
-#include "globals.h" // For projectiles array, player, bosses
-#include "utils.h"   // For calculate_distance_between_points
-#include "config.h"  // For MAX_PROJECTILES, PROJECTILE_RADIUS, PLAYER_SPRITE_SIZE
+#include "include/projectile.h"
+#include "include/globals.h" // For projectiles array, player, bosses
+#include "include/utils.h"   // For calculate_distance_between_points
+#include "include/config.h"  // For MAX_PROJECTILES, PROJECTILE_RADIUS, PLAYER_SPRITE_SIZE
 #include <stdio.h>   // For printf
 #include <math.h>    // For atan2, cos, sin
 

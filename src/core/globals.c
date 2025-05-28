@@ -1,4 +1,4 @@
-#include "globals.h" // This will bring in the extern declarations and types
+#include "include/globals.h" // This will bring in the extern declarations and types
 
 // Allegro 系統全域變數
 ALLEGRO_DISPLAY* display = NULL;

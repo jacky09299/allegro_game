@@ -3,7 +3,7 @@
 
 #include <stdbool.h>
 #include <allegro5/allegro.h> // For ALLEGRO_COLOR
-#include "config.h" // For MAX_PLAYER_SKILLS, MAX_BOSSES
+#include "include/config.h" // For MAX_PLAYER_SKILLS, MAX_BOSSES
 
 // 遊戲階段枚舉
 typedef enum {

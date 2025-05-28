@@ -1,17 +1,17 @@
-#include "game_state.h"
-#include "globals.h"    // For game_phase, menu_buttons, growth_buttons, player, camera, etc.
-#include "config.h"     // For screen dimensions, button config
-#include "player.h"     // For init_player, init_player_knife, skill usage functions
-#include "boss.h"       // For init_bosses_by_archetype
-#include "projectile.h" // For init_projectiles
-#include "battle_manager.h" // ADDED
+#include "include/game_state.h"
+#include "include/globals.h"    // For game_phase, menu_buttons, growth_buttons, player, camera, etc.
+#include "include/config.h"     // For screen dimensions, button config
+#include "include/player.h"     // For init_player, init_player_knife, skill usage functions
+#include "include/boss.h"       // For init_bosses_by_archetype
+#include "include/projectile.h" // For init_projectiles
+#include "include/battle_manager.h" // ADDED
 #include <allegro5/allegro_primitives.h> 
 #include <stdio.h>
-#include "escape_gate.h" // For init_escape_gate()
-#include "minigame1.h"
-#include "minigame2.h"
-#include "lottery.h"
-#include "backpack.h"
+#include "include/escape_gate.h" // For init_escape_gate()
+#include "include/minigame1.h"
+#include "include/minigame2.h"
+#include "include/lottery.h"
+#include "include/backpack.h"
 /**
  * 初始化主選單的按鈕。
  */

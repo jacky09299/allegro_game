@@ -3,7 +3,7 @@
 
 #include <stdbool.h>
 #include <allegro5/allegro.h>
-#include "types.h"
+#include "include/types.h"
 
 // Function declarations for player attacks
 void player_perform_normal_attack(void);

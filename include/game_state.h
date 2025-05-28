@@ -1,7 +1,7 @@
 #ifndef GAME_STATE_H
 #define GAME_STATE_H
 #include <allegro5/allegro.h>
-#include "types.h" // For GamePhase, Button
+#include "include/types.h" // For GamePhase, Button
 
 void init_menu_buttons(void);
 void init_growth_buttons(void);

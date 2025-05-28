@@ -1,8 +1,8 @@
-#include "boss_attack.h"
-#include "globals.h"    // For player, bosses array
-#include "config.h"     // For boss related constants
-#include "projectile.h" // For spawn_projectile
-#include "utils.h"      // For calculate_distance_between_points
+#include "include/boss_attack.h"
+#include "include/globals.h"    // For player, bosses array
+#include "include/config.h"     // For boss related constants
+#include "include/projectile.h" // For spawn_projectile
+#include "include/utils.h"      // For calculate_distance_between_points
 #include <stdio.h>      // For printf
 #include <stdlib.h>     // For rand
 #include <math.h>       // For M_PI, atan2, cos, sin (though M_PI, atan2, cos, sin might not be strictly needed if only action evaluation is here)

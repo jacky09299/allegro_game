@@ -10,22 +10,22 @@
 #include <allegro5/allegro_primitives.h>
 #include <allegro5/allegro_image.h>
 
-#include "config.h"
-#include "types.h"
-#include "globals.h"
-#include "player.h"
-#include "boss.h"
-#include "projectile.h"
-#include "game_state.h"
-#include "battle_manager.h"
-#include "escape_gate.h"
-#include "floor.h" // Added for init_floor
-#include "asset_manager.h" // Added for asset_manager functions
-#include "player_attack.h" // Added
-#include "minigame1.h"
-#include "minigame2.h"
-#include "lottery.h"
-#include "backpack.h"
+#include "include/config.h"
+#include "include/types.h"
+#include "include/globals.h"
+#include "include/player.h"
+#include "include/boss.h"
+#include "include/projectile.h"
+#include "include/game_state.h"
+#include "include/battle_manager.h"
+#include "include/escape_gate.h"
+#include "include/floor.h" // Added for init_floor
+#include "include/asset_manager.h" // Added for asset_manager functions
+#include "include/player_attack.h" // Added
+#include "include/minigame1.h"
+#include "include/minigame2.h"
+#include "include/lottery.h"
+#include "include/backpack.h"
 /**
  * 初始化遊戲所需的 Allegro 系統、資源和遊戲物件。
  */

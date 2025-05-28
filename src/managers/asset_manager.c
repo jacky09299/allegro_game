@@ -1,5 +1,5 @@
-#include "asset_manager.h"
-#include "floor.h" // For destroy_floor_texture
+#include "include/asset_manager.h"
+#include "include/floor.h" // For destroy_floor_texture
 #include <stdio.h>  // For fprintf, stderr, printf (debugging)
 #include <string.h> // For strcmp, strdup
 #include <stdlib.h> // For free, malloc, realloc (if using dynamic array)

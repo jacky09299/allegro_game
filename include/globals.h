@@ -4,8 +4,8 @@
 #include <allegro5/allegro.h>
 #include <allegro5/allegro_font.h>
 #include <allegro5/allegro_image.h>
-#include "types.h" // For Player, Boss, Projectile, GamePhase, Button, PlayerKnifeState, etc.
-#include "config.h" // For MAX_BOSSES, MAX_PROJECTILES, ALLEGRO_KEY_MAX, MAX_GROWTH_BUTTONS
+#include "include/types.h" // For Player, Boss, Projectile, GamePhase, Button, PlayerKnifeState, etc.
+#include "include/config.h" // For MAX_BOSSES, MAX_PROJECTILES, ALLEGRO_KEY_MAX, MAX_GROWTH_BUTTONS
 
 // Allegro 系統全域變數
 extern ALLEGRO_DISPLAY* display;

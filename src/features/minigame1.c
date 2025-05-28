@@ -11,9 +11,9 @@
 #include <mmsystem.h>
 #endif
 
-#include "globals.h"
-#include "minigame1.h"
-#include "types.h" // Included by globals.h or minigame1.h, good for clarity
+#include "include/globals.h"
+#include "include/minigame1.h"
+#include "include/types.h" // Included by globals.h or minigame1.h, good for clarity
 
 // Audio Recording Constants (common)
 #define AUDIO_BUFFER_SIZE (44100 * 2 * 35) // Approx 35 seconds of stereo audio at 44.1kHz, 16-bit. Using 2 for bytes per sample.

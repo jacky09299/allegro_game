@@ -1,9 +1,9 @@
 #include <allegro5/allegro_primitives.h>
 #include <allegro5/allegro_font.h>
 #include <allegro5/allegro_ttf.h> 
-#include "globals.h"
-#include "lottery.h"
-#include "types.h"
+#include "include/globals.h"
+#include "include/lottery.h"
+#include "include/types.h"
 
 void init_lottery(void) {
 }

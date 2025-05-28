@@ -4,7 +4,7 @@
 #include <stdbool.h>
 #include <allegro5/allegro.h>
 //#include <allegro5/allegro_event.h> // For ALLEGRO_EVENT
-#include "types.h" // For Player, PlayerSkillIdentifier, PlayerKnifeState
+#include "include/types.h" // For Player, PlayerSkillIdentifier, PlayerKnifeState
 
 void init_player(void);
 void update_player_character(void);

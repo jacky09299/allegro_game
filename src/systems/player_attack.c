@@ -1,9 +1,9 @@
-#include "player_attack.h"
-#include "asset_manager.h" // Added
-#include "globals.h"   // For player, player_knife, bosses (camera_x, camera_y are params now)
-#include "config.h"    // For various player and skill constants, KNIFE_SPRITE_WIDTH, KNIFE_SPRITE_HEIGHT
-#include "projectile.h"// For spawn_projectile
-#include "utils.h"     // For calculate_distance_between_points, get_knife_path_point
+#include "include/player_attack.h"
+#include "include/asset_manager.h" // Added
+#include "include/globals.h"   // For player, player_knife, bosses (camera_x, camera_y are params now)
+#include "include/config.h"    // For various player and skill constants, KNIFE_SPRITE_WIDTH, KNIFE_SPRITE_HEIGHT
+#include "include/projectile.h"// For spawn_projectile
+#include "include/utils.h"     // For calculate_distance_between_points, get_knife_path_point
 #include <stdio.h>     // For printf, stderr
 #include <math.h>      // For cos, sin, fmin
 #include <allegro5/allegro_primitives.h> // Added for drawing functions

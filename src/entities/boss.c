@@ -1,10 +1,10 @@
-#include "boss.h"
-#include "globals.h"    // For bosses array, player, font (used in boss_render)
-#include "config.h"     // For boss related constants, FPS, SCREEN_WIDTH, SCREEN_HEIGHT etc.
-#include "projectile.h" // For spawn_projectile
-#include "utils.h"      // For calculate_distance_between_points
-#include "boss_attack.h"  // For boss_evaluate_and_execute_action
-#include "asset_manager.h" // For load_bitmap_once
+#include "include/boss.h"
+#include "include/globals.h"    // For bosses array, player, font (used in boss_render)
+#include "include/config.h"     // For boss related constants, FPS, SCREEN_WIDTH, SCREEN_HEIGHT etc.
+#include "include/projectile.h" // For spawn_projectile
+#include "include/utils.h"      // For calculate_distance_between_points
+#include "include/boss_attack.h"  // For boss_evaluate_and_execute_action
+#include "include/asset_manager.h" // For load_bitmap_once
 #include <stdio.h>      // For printf, fprintf, stderr
 #include <stdlib.h>     // For rand
 #include <math.h>       // For M_PI, atan2, cos, sin

@@ -1,14 +1,14 @@
-#include "battle_manager.h"
-#include "globals.h"
-#include "player.h"
-#include "boss.h"
-#include "player_attack.h"
-#include "projectile.h"
-#include "floor.h"
-#include "escape_gate.h"
-#include "config.h"  // Included for completeness, many constants come via globals.h
-#include "types.h"   // Included for completeness, many types come via globals.h
-#include "utils.h"   // For calculate_distance_between_points
+#include "include/battle_manager.h"
+#include "include/globals.h"
+#include "include/player.h"
+#include "include/boss.h"
+#include "include/player_attack.h"
+#include "include/projectile.h"
+#include "include/floor.h"
+#include "include/escape_gate.h"
+#include "include/config.h"  // Included for completeness, many constants come via globals.h
+#include "include/types.h"   // Included for completeness, many types come via globals.h
+#include "include/utils.h"   // For calculate_distance_between_points
 
 #include <stdio.h>   // For sprintf, snprintf, printf
 #include <allegro5/allegro_primitives.h> // For al_draw_filled_circle, al_draw_line, al_clear_to_color etc.

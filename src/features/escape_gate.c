@@ -1,7 +1,7 @@
-#include "escape_gate.h"
-#include "globals.h"
-#include "player.h"
-#include "config.h"
+#include "include/escape_gate.h"
+#include "include/globals.h"
+#include "include/player.h"
+#include "include/config.h"
 #include <allegro5/allegro_primitives.h>
 
 /**

@@ -30,7 +30,6 @@ bool keys[ALLEGRO_KEY_MAX]; // Will be initialized in init_game_systems_and_asse
 float camera_x = 0, camera_y = 0;
 
 // 圖像資源全域變數
-ALLEGRO_BITMAP *background_texture = NULL;
 ALLEGRO_BITMAP *player_sprite_asset = NULL;
 ALLEGRO_BITMAP *boss_archetype_tank_sprite_asset = NULL;
 ALLEGRO_BITMAP *boss_archetype_skillful_sprite_asset = NULL;

@@ -1,15 +1,24 @@
 #include "player.h"
-#include "globals.h"   // For player, player_knife, bosses, camera_x, camera_y
+#include "globals.h"   // For player, player_knife, bosses, camera_x, camera_y, font
 #include "config.h"    // For various player and skill constants
 #include "projectile.h"// For spawn_projectile
 #include "utils.h"     // For calculate_distance_between_points, get_knife_path_point
-#include <stdio.h>     // For printf
-#include <math.h>      // For cos, sin, fmin
+#include "player_attack.h" // For player attack functions
+#include "asset_manager.h" // For load_bitmap_once
+#include <stdio.h>     // For printf, fprintf, stderr
+#include <math.h>      // For cos, sin, fmin, atan2, sqrtf
+#include <allegro5/allegro_primitives.h> // For al_draw_filled_circle, al_draw_line
+#include <allegro5/allegro.h> // For ALLEGRO_EVENT (already in player.h but good for .c too)
+
 
 /**
  * 初始化玩家的屬性。
  */
 void init_player() { // Changed return type to void, modifies global player
+    player.sprite = load_bitmap_once("assets/image/player.png");
+    if (!player.sprite) {
+        fprintf(stderr, "Failed to load player sprite 'assets/image/player.png'.\n");
+    }
     player.hp = 10000;
     player.max_hp = 10000;
     player.strength = 10;
@@ -35,130 +44,51 @@ void init_player() { // Changed return type to void, modifies global player
     for (int i = 0; i < NUM_ITEMS; ++i) {
         player.item_quantities[i] = 0;
     }
-
+    // Ensure sprite is initially NULL if not loaded or if struct is zero-initialized elsewhere
+    // player.sprite = NULL; // This line is redundant if player is a global zero-initialized struct,
+                             // and load_bitmap_once is called correctly above.
+                             // If player is stack or heap allocated without zeroing, then explicit NULL is good.
+                             // Given it's a global `player` object, it's likely zero-initialized.
 }
 
-/**
- * 初始化玩家刀子攻擊的狀態。
- */
-void init_player_knife() {
-    player_knife.active = false;
-    player_knife.path_progress_timer = 0.0f;
-    for (int i = 0; i < MAX_BOSSES; ++i) {
-        player_knife.hit_bosses_this_swing[i] = false;
-    }
-}
+void player_render(Player* p, float camera_x, float camera_y) {
+    // Note: camera_x and camera_y are passed but might not be directly used if player is always screen center.
+    // However, they are part of the function signature for consistency with other render functions.
 
-/**
- * 玩家執行普通攻擊 (現在是啟動刀子攻擊)。
- */
-void player_perform_normal_attack() {
-    if (player_knife.active || player.normal_attack_cooldown_timer > 0) {
-        return;
-    }
-    player_knife.active = true;
-    player_knife.path_progress_timer = 0.0f;
-    player_knife.owner_start_x = player.x;
-    player_knife.owner_start_y = player.y;
-    player_knife.owner_start_facing_angle = player.facing_angle;
-    for (int i = 0; i < MAX_BOSSES; ++i) {
-        player_knife.hit_bosses_this_swing[i] = false;
-    }
-    player.normal_attack_cooldown_timer = PLAYER_NORMAL_ATTACK_COOLDOWN;
-}
+    float player_screen_x = SCREEN_WIDTH / 2.0f;
+    float player_screen_y = SCREEN_HEIGHT / 2.0f;
 
-/**
- * 玩家使用水彈攻擊技能。
- */
-void player_use_water_attack() {
-    if (player.skill_cooldown_timers[SKILL_WATER_ATTACK] > 0) { 
-        printf("水彈攻擊冷卻中 (%ds)\n", player.skill_cooldown_timers[SKILL_WATER_ATTACK]/FPS + 1);
-        return;
-    }
-    player.skill_cooldown_timers[SKILL_WATER_ATTACK] = PLAYER_WATER_SKILL_COOLDOWN; 
-    float projectile_target_x = player.x + cos(player.facing_angle) * 1000.0f;
-    float projectile_target_y = player.y + sin(player.facing_angle) * 1000.0f;
-    spawn_projectile(player.x, player.y, projectile_target_x, projectile_target_y,
-                      OWNER_PLAYER, PROJ_TYPE_WATER, PLAYER_WATER_PROJECTILE_DAMAGE + player.magic, 
-                      PLAYER_WATER_PROJECTILE_SPEED, PLAYER_WATER_PROJECTILE_LIFESPAN, -1);
-    printf("玩家施放水彈攻擊！\n");
-}
-
-/**
- * 玩家使用冰錐術技能。
- */
-void player_use_ice_shard() {
-    if (player.skill_cooldown_timers[SKILL_ICE_SHARD] > 0) { 
-        printf("冰錐術冷卻中 (%ds)\n", player.skill_cooldown_timers[SKILL_ICE_SHARD]/FPS + 1);
-        return;
-    }
-    player.skill_cooldown_timers[SKILL_ICE_SHARD] = PLAYER_ICE_SKILL_COOLDOWN; 
-    float projectile_target_x = player.x + cos(player.facing_angle) * 1000.0f;
-    float projectile_target_y = player.y + sin(player.facing_angle) * 1000.0f;
-    spawn_projectile(player.x, player.y, projectile_target_x, projectile_target_y,
-                      OWNER_PLAYER, PROJ_TYPE_ICE, PLAYER_ICE_PROJECTILE_DAMAGE + player.magic, 
-                      PLAYER_ICE_PROJECTILE_SPEED, PLAYER_ICE_PROJECTILE_LIFESPAN, -1);
-    printf("玩家施放冰錐術！\n");
-}
-
-/**
- * 玩家使用閃電鏈技能。
- */
-void player_use_lightning_bolt() {
-    if (player.skill_cooldown_timers[SKILL_LIGHTNING_BOLT] > 0) { 
-        printf("閃電鏈冷卻中 (%ds)\n", player.skill_cooldown_timers[SKILL_LIGHTNING_BOLT]/FPS + 1);
-        return;
-    }
-    player.skill_cooldown_timers[SKILL_LIGHTNING_BOLT] = PLAYER_LIGHTNING_SKILL_COOLDOWN; 
-    bool hit_any = false; 
-    for (int i = 0; i < MAX_BOSSES; ++i) {
-        if (bosses[i].is_alive) { 
-            float dist = calculate_distance_between_points(player.x, player.y, bosses[i].x, bosses[i].y); 
-            if (dist < PLAYER_LIGHTNING_RANGE) { 
-                int damage_dealt = PLAYER_LIGHTNING_DAMAGE + player.magic; 
-                bosses[i].hp -= damage_dealt; 
-                printf("閃電鏈命中 Boss %d (原型 %d)！ Boss HP: %d/%d\n", bosses[i].id, bosses[i].archetype, bosses[i].hp, bosses[i].max_hp);
-                hit_any = true;
-                if (bosses[i].hp <= 0) { 
-                    bosses[i].is_alive = false; 
-                    printf("Boss %d (原型 %d) 被閃電鏈擊敗！\n", bosses[i].id, bosses[i].archetype);
-                }
-            }
+    if (p->sprite) { // Use p->sprite now
+        float src_w = al_get_bitmap_width(p->sprite);
+        float src_h = al_get_bitmap_height(p->sprite);
+        if (src_w > 0 && src_h > 0) {
+            float scale_x = (float)PLAYER_TARGET_WIDTH / src_w;
+            float scale_y = (float)PLAYER_TARGET_HEIGHT / src_h;
+            al_draw_scaled_rotated_bitmap(p->sprite,
+                                        src_w / 2.0f, src_h / 2.0f,
+                                        player_screen_x, player_screen_y,
+                                        scale_x, scale_y,
+                                        p->facing_angle,
+                                        0);
+        } else { // Fallback if sprite dimensions are zero
+            al_draw_filled_circle(player_screen_x, player_screen_y, PLAYER_SPRITE_SIZE, al_map_rgb(0, 100, 200));
         }
+    } else { // Fallback if sprite is not loaded
+        al_draw_filled_circle(player_screen_x, player_screen_y, PLAYER_SPRITE_SIZE, al_map_rgb(0, 100, 200));
+        // Draw a line to indicate facing direction if no sprite
+        float line_end_x = player_screen_x + cos(p->facing_angle) * PLAYER_SPRITE_SIZE * 1.5f;
+        float line_end_y = player_screen_y + sin(p->facing_angle) * PLAYER_SPRITE_SIZE * 1.5f;
+        al_draw_line(player_screen_x, player_screen_y, line_end_x, line_end_y, al_map_rgb(255, 255, 255), 2.0f);
     }
-    if (!hit_any) printf("閃電鏈：範圍內沒有 Boss！\n");
-}
 
-/**
- * 玩家使用治療術技能。
- */
-void player_use_heal() {
-    if (player.skill_cooldown_timers[SKILL_HEAL] > 0) { 
-        printf("治療術冷卻中 (%ds)\n", player.skill_cooldown_timers[SKILL_HEAL]/FPS + 1);
-        return;
+    // Render player text (HP, stats)
+    // Access global `font` variable (ensure it's accessible, e.g. via "globals.h")
+    // SCREEN_WIDTH, PLAYER_TARGET_HEIGHT, PLAYER_SPRITE_SIZE are from "config.h"
+    float player_text_y_offset = (p->sprite ? PLAYER_TARGET_HEIGHT / 2.0f : PLAYER_SPRITE_SIZE) + 5;
+    if (font) { // Check if font is loaded
+        al_draw_textf(font, al_map_rgb(255, 255, 255), player_screen_x, player_screen_y - player_text_y_offset - 20, ALLEGRO_ALIGN_CENTER, "玩家 (力:%d 魔:%d)", p->strength, p->magic);
+        al_draw_textf(font, al_map_rgb(180, 255, 180), player_screen_x, player_screen_y - player_text_y_offset, ALLEGRO_ALIGN_CENTER, "HP: %d/%d", p->hp, p->max_hp);
     }
-    player.skill_cooldown_timers[SKILL_HEAL] = PLAYER_HEAL_SKILL_COOLDOWN; 
-    int old_hp = player.hp;
-    player.hp += PLAYER_HEAL_AMOUNT + player.magic * 2; 
-    if (player.hp > player.max_hp) player.hp = player.max_hp; 
-    printf("玩家治療了 %d 點生命！ (%d -> %d)\n", player.hp - old_hp, old_hp, player.hp);
-}
-
-/**
- * 玩家使用火球術技能。
- */
-void player_use_fireball() {
-    if (player.skill_cooldown_timers[SKILL_FIREBALL] > 0) { 
-        printf("火球術冷卻中 (%ds)\n", player.skill_cooldown_timers[SKILL_FIREBALL]/FPS + 1);
-        return;
-    }
-    player.skill_cooldown_timers[SKILL_FIREBALL] = PLAYER_FIREBALL_SKILL_COOLDOWN; 
-    float projectile_target_x = player.x + cos(player.facing_angle) * 1000.0f;
-    float projectile_target_y = player.y + sin(player.facing_angle) * 1000.0f;
-    spawn_projectile(player.x, player.y, projectile_target_x, projectile_target_y,
-                      OWNER_PLAYER, PROJ_TYPE_PLAYER_FIREBALL, PLAYER_FIREBALL_DAMAGE + player.magic, 
-                      PLAYER_FIREBALL_SPEED, PLAYER_FIREBALL_LIFESPAN, -1);
-    printf("玩家施放火球術！\n");
 }
 
 /**
@@ -173,57 +103,57 @@ void update_player_character() {
             player.skill_cooldown_timers[i]--; 
         }
     }
+
+    if (player.normal_attack_cooldown_timer > 0) {
+        player.normal_attack_cooldown_timer--;
+    }
 }
 
-/**
- * 更新玩家刀子攻擊的狀態。
- */
-void update_player_knife() {
-    if (!player_knife.active) {
-        return;
+void player_handle_input(Player* p, ALLEGRO_EVENT* ev, bool keys[]) {
+    // Movement Logic (from handle_player_battle_movement_input)
+    // This part should ideally only run if ev->type == ALLEGRO_EVENT_TIMER or similar continuous update signal.
+    // For now, assume keys[] are updated outside and this is called on timer event.
+    p->v_x = 0.0f;
+    p->v_y = 0.0f;
+    if (keys[ALLEGRO_KEY_W] || keys[ALLEGRO_KEY_UP]) p->v_y -= 1.0f;
+    if (keys[ALLEGRO_KEY_S] || keys[ALLEGRO_KEY_DOWN]) p->v_y += 1.0f;
+    if (keys[ALLEGRO_KEY_A] || keys[ALLEGRO_KEY_LEFT]) p->v_x -= 1.0f;
+    if (keys[ALLEGRO_KEY_D] || keys[ALLEGRO_KEY_RIGHT]) p->v_x += 1.0f;
+
+    if (p->v_x != 0.0f || p->v_y != 0.0f) {
+        float magnitude = sqrtf(p->v_x * p->v_x + p->v_y * p->v_y);
+        if (magnitude != 0.0f) {
+            p->v_x = (p->v_x / magnitude) * p->speed;
+            p->v_y = (p->v_y / magnitude) * p->speed;
+        }
     }
 
-    player_knife.path_progress_timer += 1.0f;
-
-    if (player_knife.path_progress_timer >= KNIFE_ATTACK_DURATION) {
-        player_knife.active = false;
-        return;
+    // Aiming Logic (from handle_player_battle_aiming_input)
+    if (ev && ev->type == ALLEGRO_EVENT_MOUSE_AXES) { // Check if ev is not NULL
+        float player_screen_center_x = SCREEN_WIDTH / 2.0f;
+        float player_screen_center_y = SCREEN_HEIGHT / 2.0f;
+        p->facing_angle = atan2(ev->mouse.y - player_screen_center_y, ev->mouse.x - player_screen_center_x);
     }
 
-    float progress = player_knife.path_progress_timer / KNIFE_ATTACK_DURATION; 
-    float local_x, local_y, local_path_angle;
-    get_knife_path_point(progress, &local_x, &local_y, &local_path_angle);
-
-    float cos_a = cos(player_knife.owner_start_facing_angle);
-    float sin_a = sin(player_knife.owner_start_facing_angle);
-
-    float world_offset_x = local_x * cos_a - local_y * sin_a;
-    float world_offset_y = local_x * sin_a + local_y * cos_a;
-
-    player_knife.x = player_knife.owner_start_x + world_offset_x;
-    player_knife.y = player_knife.owner_start_y + world_offset_y;
-    player_knife.angle = player_knife.owner_start_facing_angle + local_path_angle;
-
-    float knife_collision_radius = fmin(KNIFE_SPRITE_WIDTH, KNIFE_SPRITE_HEIGHT) / 3.0f;
-
-    for (int i = 0; i < MAX_BOSSES; ++i) {
-        if (bosses[i].is_alive && !player_knife.hit_bosses_this_swing[i]) {
-            float dist = calculate_distance_between_points(player_knife.x, player_knife.y, bosses[i].x, bosses[i].y);
-            if (dist < bosses[i].collision_radius + knife_collision_radius) {
-                int damage_dealt = KNIFE_DAMAGE_BASE + player.strength - bosses[i].defense;
-                if (damage_dealt < 1) damage_dealt = 1;
-                
-                bosses[i].hp -= damage_dealt;
-                player_knife.hit_bosses_this_swing[i] = true; 
-
-                printf("刀子擊中 Boss %d (原型 %d)！造成 %d 傷害。Boss HP: %d/%d\n",
-                       bosses[i].id, bosses[i].archetype, damage_dealt, bosses[i].hp, bosses[i].max_hp);
-
-                if (bosses[i].hp <= 0) {
-                    bosses[i].is_alive = false;
-                    printf("Boss %d (原型 %d) 被刀子擊敗！\n", bosses[i].id, bosses[i].archetype);
-                }
+    // Action Logic (from handle_player_battle_action_input)
+    if (ev) { // Check if ev is not NULL
+        if (ev->type == ALLEGRO_EVENT_KEY_DOWN) {
+            switch (ev->keyboard.keycode) {
+                case ALLEGRO_KEY_J: /* No action defined */ break;
+                case ALLEGRO_KEY_K: player_use_water_attack(); break;
+                case ALLEGRO_KEY_L: player_use_ice_shard(); break;
+                case ALLEGRO_KEY_U: player_use_lightning_bolt(); break;
+                case ALLEGRO_KEY_I: player_use_heal(); break;
+                case ALLEGRO_KEY_O: player_use_fireball(); break;
+                case ALLEGRO_KEY_ESCAPE:
+                    game_phase = MENU; // Global interaction
+                    for (int i = 0; i < 3; ++i) { // Assumes 3 menu_buttons, global interaction
+                        menu_buttons[i].is_hovered = false;
+                    }
+                    break;
             }
+        } else if (ev->type == ALLEGRO_EVENT_MOUSE_BUTTON_DOWN && ev->mouse.button == 1) {
+            player_perform_normal_attack();
         }
     }
 }

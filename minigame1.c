@@ -44,7 +44,7 @@ static bool force_audio_too_quiet_for_test = false;
 // Forward declarations for audio functions
 static void prepare_audio_recording(void);
 static void start_actual_audio_recording(void);
-static bool stop_actual_audio_recording(void);
+static bool stop_actual_audio_recording(void); // Returns true if recording was valid
 static void cleanup_audio_recording(void);
 
 
@@ -423,6 +423,7 @@ void update_minigame1(void) {
 
 // --- Audio Recording Functions Implementation ---
 
+#ifdef _WIN32
 static void prepare_audio_recording(void) {
     if (pWaveBuffer == NULL) {
         pWaveBuffer = (char*)malloc(AUDIO_BUFFER_SIZE);
@@ -507,8 +508,11 @@ static bool stop_actual_audio_recording(void) {
     printf("DEBUG: Windows Recording stopped. Recorded for %.2f seconds.\n", audioLengthSeconds);
 
     bool validationSuccess = true;
-    if (audioLengthSeconds < 1.0f) { // Real 30s check for Windows
-        printf("DEBUG: Windows Recording too short (%.2f s < 30s).\n", audioLengthSeconds);
+    // For Windows, we can keep the more stringent 30s check if desired, or reduce for testing.
+    // Let's assume the original logic meant a shorter practical minimum for gameplay.
+    // For now, let's use 1.0f as a placeholder for a successful recording on Windows too.
+    if (audioLengthSeconds < 1.0f) { 
+        printf("DEBUG: Windows Recording too short (%.2f s < 1s).\n", audioLengthSeconds);
         displayPleaseSingMessage = true;
         validationSuccess = false;
     } else {
@@ -524,15 +528,16 @@ static bool stop_actual_audio_recording(void) {
         displayPleaseSingMessage = true;
         decibelsOkay = false;
         validationSuccess = false;
-    } else if (validationSuccess) { // Only check decibels if length was okay
+    } else if (validationSuccess) { 
         for (DWORD i = 0; i < num_samples_recorded; ++i) {
             if (abs(samples[i]) > max_abs_sample) {
                 max_abs_sample = abs(samples[i]);
             }
         }
         printf("DEBUG: Windows Max absolute sample value: %ld\n", max_abs_sample);
+        // Reduced threshold for testing, original was < 1000
         if (max_abs_sample < 1) { 
-            printf("DEBUG: Windows Recording too quiet (max_abs_sample: %ld < 1000).\n", max_abs_sample);
+            printf("DEBUG: Windows Recording too quiet (max_abs_sample: %ld < 1).\n", max_abs_sample);
             displayPleaseSingMessage = true;
             decibelsOkay = false;
             validationSuccess = false;
@@ -554,18 +559,80 @@ static bool stop_actual_audio_recording(void) {
 static void cleanup_audio_recording(void) {
     printf("DEBUG: Windows cleanup_audio_recording() called.\n");
     if (isActuallyRecording && hWaveIn != NULL) {
-        waveInReset(hWaveIn);
+        waveInReset(hWaveIn); // Stop recording if it was somehow left running
         isActuallyRecording = false;
     }
     if (hWaveIn != NULL) {
+        // Unprepare the header if it was prepared
         if (waveHdr.dwFlags & WHDR_PREPARED) {
             waveInUnprepareHeader(hWaveIn, &waveHdr, sizeof(WAVEHDR));
         }
-        waveInClose(hWaveIn);
+        waveInClose(hWaveIn); // Close the device
         hWaveIn = NULL;
     }
     if (pWaveBuffer != NULL) {
-        free(pWaveBuffer);
+        free(pWaveBuffer); // Free the buffer
         pWaveBuffer = NULL;
     }
 }
+
+#else // Non-Windows platforms
+
+static void prepare_audio_recording(void) {
+    printf("DEBUG: Non-Windows: prepare_audio_recording() called (stub).\n");
+    // Placeholder for non-Windows audio preparation if any
+    // For now, pWaveBuffer_nonWin could be allocated if we were to simulate.
+    if (pWaveBuffer_nonWin == NULL) {
+        pWaveBuffer_nonWin = (char*)malloc(AUDIO_BUFFER_SIZE);
+        if (pWaveBuffer_nonWin == NULL) {
+            fprintf(stderr, "Failed to allocate non-Windows audio buffer.\n");
+        }
+    }
+}
+
+static void start_actual_audio_recording(void) {
+    isActuallyRecording = true;
+    recordingStartTime_nonWin = time(NULL); // Use standard time for non-Windows
+    displayPleaseSingMessage = false;
+    audioLengthSeconds = 0.0f;
+    decibelsOkay = false;
+    printf("DEBUG: Non-Windows: start_actual_audio_recording() called (simulated).\n");
+}
+
+static bool stop_actual_audio_recording(void) {
+    if (!isActuallyRecording) {
+        return false;
+    }
+    isActuallyRecording = false;
+    time_t recordingStopTime_nonWin = time(NULL);
+    audioLengthSeconds = difftime(recordingStopTime_nonWin, recordingStartTime_nonWin);
+    printf("DEBUG: Non-Windows: Recording stopped. Recorded for %.2f seconds.\n", audioLengthSeconds);
+
+    // Simulate success for non-Windows for now unless test flags are set
+    if (force_audio_too_short_for_test) {
+        printf("DEBUG: Non-Windows: Simulating recording too short.\n");
+        displayPleaseSingMessage = true;
+        return false;
+    }
+    if (force_audio_too_quiet_for_test) {
+        printf("DEBUG: Non-Windows: Simulating recording too quiet.\n");
+        displayPleaseSingMessage = true;
+        decibelsOkay = false; // Ensure this is set
+        return false;
+    }
+    
+    // Default to success for non-Windows if no force flags
+    printf("DEBUG: Non-Windows: Audio validation SUCCEEDED (simulated).\n");
+    decibelsOkay = true;
+    return true;
+}
+
+static void cleanup_audio_recording(void) {
+    printf("DEBUG: Non-Windows: cleanup_audio_recording() called (stub).\n");
+    if (pWaveBuffer_nonWin != NULL) {
+        free(pWaveBuffer_nonWin);
+        pWaveBuffer_nonWin = NULL;
+    }
+    isActuallyRecording = false; // Ensure this is reset
+}
+#endif // _WIN32

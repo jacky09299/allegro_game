@@ -4,6 +4,7 @@
 #include "player.h"     // For init_player, init_player_knife, skill usage functions
 #include "boss.h"       // For init_bosses_by_archetype
 #include "projectile.h" // For init_projectiles
+#include "battle_manager.h" // ADDED
 #include <allegro5/allegro_primitives.h> 
 #include <stdio.h>
 #include "escape_gate.h" // For init_escape_gate()
@@ -142,12 +143,7 @@ void handle_main_menu_input(ALLEGRO_EVENT ev) {
             if (menu_buttons[i].is_hovered) { 
                 game_phase = menu_buttons[i].action_phase; 
                 if (game_phase == BATTLE) {
-                    player.hp = player.max_hp;
-                    init_player_knife(); 
-                    init_bosses_by_archetype(); 
-                    init_projectiles();
-                    camera_x = player.x - SCREEN_WIDTH/2.0f; 
-                    camera_y = player.y - SCREEN_HEIGHT/2.0f;
+                    start_new_battle(); // MODIFIED
                 }
                 if (game_phase == GROWTH) {
                     day_time = 1;
@@ -211,40 +207,9 @@ void handle_growth_screen_input(ALLEGRO_EVENT ev) {
                 current_day++;
                 // 初始化戰鬥：init_bosses_by_archetype(); etc.
                 game_phase = BATTLE;
-                player.hp = player.max_hp;
-                player.x = 0;
-                player.y = 0;
-                init_player_knife();
-                init_bosses_by_archetype(); 
-                init_projectiles();
-                init_escape_gate();
-                camera_x = player.x - SCREEN_WIDTH/2.0f; camera_y = player.y - SCREEN_HEIGHT/2.0f;
+                start_new_battle(); // MODIFIED
             }
         }
-    }
-}
-
-/**
- * 處理戰鬥場景中的玩家動作輸入事件。
- */
-void handle_battle_scene_input_actions(ALLEGRO_EVENT ev) {
-    if (ev.type == ALLEGRO_EVENT_KEY_DOWN) { 
-        switch (ev.keyboard.keycode) {
-        case ALLEGRO_KEY_J: break; 
-        case ALLEGRO_KEY_K: player_use_water_attack(); break;      
-        case ALLEGRO_KEY_L: player_use_ice_shard(); break;         
-        case ALLEGRO_KEY_U: player_use_lightning_bolt(); break;    
-        case ALLEGRO_KEY_I: player_use_heal(); break;              
-        case ALLEGRO_KEY_O: player_use_fireball(); break;          
-        case ALLEGRO_KEY_ESCAPE: 
-            game_phase = MENU; 
-            for (int i = 0; i < 3; ++i) {
-                 menu_buttons[i].is_hovered = false;
-            }
-            break;         
-        }
-    }else if (ev.type == ALLEGRO_EVENT_MOUSE_BUTTON_DOWN && ev.mouse.button == 1) {
-        player_perform_normal_attack(); // 滑鼠左鍵攻擊寫這裡
     }
 }
 

@@ -37,7 +37,6 @@ extern bool keys[ALLEGRO_KEY_MAX];
 extern float camera_x, camera_y;
 
 // 圖像資源全域變數
-extern ALLEGRO_BITMAP *background_texture;
 extern ALLEGRO_BITMAP *player_sprite_asset;
 extern ALLEGRO_BITMAP *boss_archetype_tank_sprite_asset;
 extern ALLEGRO_BITMAP *boss_archetype_skillful_sprite_asset;

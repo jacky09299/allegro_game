@@ -88,6 +88,7 @@ typedef struct {
     int skill_cooldown_timers[MAX_PLAYER_SKILLS]; // 各技能的冷卻計時器 (幀)
     int normal_attack_cooldown_timer; // 普通攻擊冷卻計時器
     int item_quantities[NUM_ITEMS]; //記錄每種道具的數量
+    ALLEGRO_BITMAP* sprite; // Player's sprite
 } Player;
 
 // Boss 結構
@@ -139,6 +140,7 @@ typedef struct {
 
     // 追蹤在此次揮砍中已擊中的 Boss，避免重複傷害
     bool hit_bosses_this_swing[MAX_BOSSES]; 
+    ALLEGRO_BITMAP* sprite; // <-- NEW FIELD
 } PlayerKnifeState;
 
 //逃跑門結構

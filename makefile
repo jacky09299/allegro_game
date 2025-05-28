@@ -30,9 +30,9 @@ else # Mac OS / Linux
 	export PKG_CONFIG_PATH=/usr/local/lib/pkgconfig
 	export DYLD_LIBRARY_PATH=/usr/local/lib:$DYLD_LIBRARY_PATH
 	ALLEGRO_LIBRARIES := allegro-5 allegro_image-5 allegro_font-5 allegro_ttf-5 allegro_dialog-5 allegro_primitives-5 allegro_audio-5 allegro_acodec-5
-	ALLEGRO_FLAGS_RELEASE := $(shell pkg-config --cflags --libs "$(ALLEGRO_LIBRARIES) <= 5.2.7") -lallegro
+	ALLEGRO_FLAGS_RELEASE := $(shell pkg-config --cflags --libs "$(ALLEGRO_LIBRARIES)") -lallegro
 	ALLEGRO_DLL_PATH_RELEASE := 
-	ALLEGRO_FLAGS_DEBUG := $(ALLEGRO_FLAGS_RELEASE)
+	ALLEGRO_FLAGS_DEBUG := $(shell pkg-config --cflags --libs "$(ALLEGRO_LIBRARIES)") -lallegro
 	ALLEGRO_DLL_PATH_DEBUG := 
 
 	RM_OBJ := rm $(OBJ)
@@ -44,13 +44,32 @@ endif
 
 debug:
 	$(CC) -c -g $(CXXFLAGS) $(SOURCE) $(ALLEGRO_FLAGS_DEBUG) -D DEBUG
-	$(CC) $(CXXFLAGS) -o $(OUT) $(OBJ) $(ALLEGRO_FLAGS_DEBUG) $(ALLEGRO_DLL_PATH_DEBUG)
+	$(CC) $(CXXFLAGS) -o $(OUT) $(OBJ) $(ALLEGRO_FLAGS_DEBUG) $(ALLEGRO_DLL_PATH_DEBUG) -lm
 	$(RM_OBJ)
 
 release:
 	$(CC) -c $(CXXFLAGS) $(SOURCE) $(ALLEGRO_FLAGS_RELEASE)
-	$(CC) $(CXXFLAGS) -o $(OUT) $(OBJ) $(ALLEGRO_FLAGS_RELEASE) $(ALLEGRO_DLL_PATH_RELEASE)
+	$(CC) $(CXXFLAGS) -o $(OUT) $(OBJ) $(ALLEGRO_FLAGS_RELEASE) $(ALLEGRO_DLL_PATH_RELEASE) -lm
 	$(RM_OBJ)
 
 clean:
 	$(RM_OUT)
+
+.PHONY: debug release clean testexec
+
+TEST_OUT := testexec
+TEST_SOURCE := tests.c player_attack.c boss_attack.c floor.c player.c boss.c projectile.c utils.c globals.c game_state.c battle_manager.c escape_gate.c
+TEST_OBJ := $(patsubst %.c, %.o, $(notdir $(TEST_SOURCE)))
+RM_TEST_OBJ :=
+
+ifeq ($(OS), Windows_NT) # Windows OS
+	RM_TEST_OBJ := $(foreach name, $(TEST_OBJ), del $(name) & )
+else # Mac OS / Linux
+	RM_TEST_OBJ := rm $(TEST_OBJ)
+endif
+
+testexec: $(TEST_SOURCE)
+	$(CC) -c -g $(CXXFLAGS) $(TEST_SOURCE) $(ALLEGRO_FLAGS_DEBUG) -DDEBUG -DTEST_MODE 
+	$(CC) $(CXXFLAGS) -o $(TEST_OUT) $(TEST_OBJ) $(ALLEGRO_FLAGS_DEBUG) $(ALLEGRO_DLL_PATH_DEBUG) -lm
+	$(RM_TEST_OBJ)
+	./$(TEST_OUT)

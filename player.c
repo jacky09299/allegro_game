@@ -1,13 +1,15 @@
 #include "player.h"
-#include "globals.h"   // For player, player_knife, bosses, camera_x, camera_y
-#include "config.h"    // For various player and skill constants
-#include "projectile.h"// For spawn_projectile
-#include "utils.h"     // For calculate_distance_between_points, get_knife_path_point
-#include <stdio.h>     // For printf
-#include <math.h>      // For cos, sin, fmin
+#include <math.h>
+#include <stdio.h>
+#include <allegro5/keyboard.h>
+#include <allegro5/allegro.h>
+#include "globals.h"
+#include "config.h"
+#include "projectile.h"
+#include "utils.h"
 
 /**
- * @brief 初始化玩家的屬性。
+ * 初始化玩家的屬性。
  */
 void init_player() { // Changed return type to void, modifies global player
     player.hp = 10000;
@@ -32,10 +34,14 @@ void init_player() { // Changed return type to void, modifies global player
     player.learned_skills[SKILL_LIGHTNING_BOLT] = SKILL_LIGHTNING_BOLT;
     player.learned_skills[SKILL_HEAL] = SKILL_HEAL;
     player.learned_skills[SKILL_FIREBALL] = SKILL_FIREBALL;
+    for (int i = 0; i < NUM_ITEMS; ++i) {
+        player.item_quantities[i] = 0;
+    }
+
 }
 
 /**
- * @brief 初始化玩家刀子攻擊的狀態。
+ * 初始化玩家刀子攻擊的狀態。
  */
 void init_player_knife() {
     player_knife.active = false;
@@ -45,8 +51,43 @@ void init_player_knife() {
     }
 }
 
+void handle_player_battle_movement(bool keys[]) {
+    player.v_x = 0; player.v_y = 0;
+    if (keys[ALLEGRO_KEY_W] || keys[ALLEGRO_KEY_UP]) player.v_y -= 1.0f;
+    if (keys[ALLEGRO_KEY_S] || keys[ALLEGRO_KEY_DOWN]) player.v_y += 1.0f;
+    if (keys[ALLEGRO_KEY_A] || keys[ALLEGRO_KEY_LEFT]) player.v_x -= 1.0f;
+    if (keys[ALLEGRO_KEY_D] || keys[ALLEGRO_KEY_RIGHT]) player.v_x += 1.0f;
+
+    if (player.v_x != 0 || player.v_y != 0) {
+        float magnitude = sqrtf(player.v_x * player.v_x + player.v_y * player.v_y);
+        player.v_x = (player.v_x / magnitude) * player.speed;
+        player.v_y = (player.v_y / magnitude) * player.speed;
+    }
+}
+
+void handle_player_battle_aim(int mouse_x, int mouse_y) {
+    float player_screen_center_x = SCREEN_WIDTH / 2.0f;
+    float player_screen_center_y = SCREEN_HEIGHT / 2.0f;
+    player.facing_angle = atan2(mouse_y - player_screen_center_y, mouse_x - player_screen_center_x);
+}
+
+void player_process_battle_input_event(ALLEGRO_EVENT ev) {
+    if (ev.type == ALLEGRO_EVENT_KEY_DOWN) {
+        switch (ev.keyboard.keycode) {
+            case ALLEGRO_KEY_J: break; // J is normal attack, handled by mouse click now
+            case ALLEGRO_KEY_K: player_use_water_attack(); break;
+            case ALLEGRO_KEY_L: player_use_ice_shard(); break;
+            case ALLEGRO_KEY_U: player_use_lightning_bolt(); break;
+            case ALLEGRO_KEY_I: player_use_heal(); break;
+            case ALLEGRO_KEY_O: player_use_fireball(); break;
+        }
+    } else if (ev.type == ALLEGRO_EVENT_MOUSE_BUTTON_DOWN && ev.mouse.button == 1) {
+        player_perform_normal_attack();
+    }
+}
+
 /**
- * @brief 玩家執行普通攻擊 (現在是啟動刀子攻擊)。
+ * 玩家執行普通攻擊 (現在是啟動刀子攻擊)。
  */
 void player_perform_normal_attack() {
     if (player_knife.active || player.normal_attack_cooldown_timer > 0) {
@@ -64,7 +105,7 @@ void player_perform_normal_attack() {
 }
 
 /**
- * @brief 玩家使用水彈攻擊技能。
+ * 玩家使用水彈攻擊技能。
  */
 void player_use_water_attack() {
     if (player.skill_cooldown_timers[SKILL_WATER_ATTACK] > 0) { 
@@ -81,7 +122,7 @@ void player_use_water_attack() {
 }
 
 /**
- * @brief 玩家使用冰錐術技能。
+ * 玩家使用冰錐術技能。
  */
 void player_use_ice_shard() {
     if (player.skill_cooldown_timers[SKILL_ICE_SHARD] > 0) { 
@@ -98,7 +139,7 @@ void player_use_ice_shard() {
 }
 
 /**
- * @brief 玩家使用閃電鏈技能。
+ * 玩家使用閃電鏈技能。
  */
 void player_use_lightning_bolt() {
     if (player.skill_cooldown_timers[SKILL_LIGHTNING_BOLT] > 0) { 
@@ -126,7 +167,7 @@ void player_use_lightning_bolt() {
 }
 
 /**
- * @brief 玩家使用治療術技能。
+ * 玩家使用治療術技能。
  */
 void player_use_heal() {
     if (player.skill_cooldown_timers[SKILL_HEAL] > 0) { 
@@ -141,7 +182,7 @@ void player_use_heal() {
 }
 
 /**
- * @brief 玩家使用火球術技能。
+ * 玩家使用火球術技能。
  */
 void player_use_fireball() {
     if (player.skill_cooldown_timers[SKILL_FIREBALL] > 0) { 
@@ -158,7 +199,7 @@ void player_use_fireball() {
 }
 
 /**
- * @brief 更新玩家角色的狀態。
+ * 更新玩家角色的狀態。
  */
 void update_player_character() {
     player.x += player.v_x; 
@@ -169,10 +210,14 @@ void update_player_character() {
             player.skill_cooldown_timers[i]--; 
         }
     }
+    
+    if (player.normal_attack_cooldown_timer > 0) { // Added line
+        player.normal_attack_cooldown_timer--;
+    }
 }
 
 /**
- * @brief 更新玩家刀子攻擊的狀態。
+ * 更新玩家刀子攻擊的狀態。
  */
 void update_player_knife() {
     if (!player_knife.active) {
@@ -225,7 +270,7 @@ void update_player_knife() {
 }
 
 /**
- * @brief 更新遊戲攝影機的位置。
+ * 更新遊戲攝影機的位置。
  */
 void update_game_camera() {
     camera_x = player.x - SCREEN_WIDTH / 2.0f;  

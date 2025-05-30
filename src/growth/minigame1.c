@@ -847,7 +847,7 @@ static void prepare_audio_recording(void) {
     }
     ZeroMemory(waveform_buffer, waveform_buffer_size_samples * sizeof(short));
     waveform_buffer_write_pos = 0;
-    printf("DEBUG: Waveform buffer allocated (%d samples, %llu bytes).\n", waveform_buffer_size_samples, (long long unsigned int)((size_t)waveform_buffer_size_samples * sizeof(short))); // Changed %zu to %llu and cast
+    printf("DEBUG: Waveform buffer allocated (%d samples, %lu bytes).\n", waveform_buffer_size_samples, (unsigned long)((size_t)waveform_buffer_size_samples * sizeof(short))); // Changed %zu to %llu and cast, NOW FIXED
 
     WAVEFORMATEX wfx;
     wfx.wFormatTag = WAVE_FORMAT_PCM; 

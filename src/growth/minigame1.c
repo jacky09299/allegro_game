@@ -1,11 +1,11 @@
 #include <allegro5/allegro_primitives.h>
 #include <allegro5/allegro_font.h>
 #include <allegro5/allegro_ttf.h>
-#include <allegro5/allegro.h> // For al_get_time, ALLEGRO_PI
+#include <allegro5/allegro.h> // 用於 al_get_time, ALLEGRO_PI
 #include <stdio.h>
-#include <math.h>   // For fmaxf, fminf, cos, sin, fabs
-#include <stdlib.h> // For rand, abs (for int)
-#include <string.h> // For memset, memcpy (if needed)
+#include <math.h>   // 用於 fmaxf, fminf, cos, sin, fabs
+#include <stdlib.h> // 用於 rand, abs (整數)
+#include <string.h> // 用於 memset, memcpy (如果需要)
 #include <time.h>
 
 
@@ -14,83 +14,89 @@
 #include <mmsystem.h>
 #endif
 
-#include "globals.h"
+#include "globals.h" // 假設 font, SCREEN_WIDTH, SCREEN_HEIGHT 等在此定義或 extern
 #include "minigame1.h"
-#include "types.h"
+#include "types.h"   // 假設 Button, MinigameFlowerPlant 等在此定義
 
-// Audio Recording Constants
-#define AUDIO_BUFFER_SIZE (44100 * 2 * 35)
-#define AUDIO_SAMPLE_RATE 44100
-#define AUDIO_CHANNELS 1
-#define AUDIO_BITS_PER_SAMPLE 16
+// 音訊錄製常數
+#define AUDIO_BUFFER_SIZE (44100 * 2 * 35) // 音訊緩衝區大小 (44.1kHz * 16位元單聲道 * 35秒)
+#define AUDIO_SAMPLE_RATE 44100            // 音訊取樣率
+#define AUDIO_CHANNELS 1                   // 音訊聲道數
+#define AUDIO_BITS_PER_SAMPLE 16           // 每樣本位元數
 
-// Real-time Feedback Constants
-#define WAVEFORM_AREA_X 50
-#define WAVEFORM_AREA_Y 100 // Adjusted Y to make space for new text
-#define WAVEFORM_AREA_WIDTH (SCREEN_WIDTH - 100)
-#define WAVEFORM_AREA_HEIGHT 100
-#define REALTIME_ANALYSIS_WINDOW_MS 50
-#define WAVEFORM_DISPLAY_DURATION_SEC 0.5f
+// 即時回饋常數
+#define WAVEFORM_AREA_X 50                                  // 波形顯示區域 X 座標
+#define WAVEFORM_AREA_Y (100 + 60)                          // 波形顯示區域 Y 座標 (向下移動 60 像素)
+#define WAVEFORM_AREA_WIDTH (SCREEN_WIDTH - 100)            // 波形顯示區域寬度
+#define WAVEFORM_AREA_HEIGHT 100                            // 波形顯示區域高度
+#define REALTIME_ANALYSIS_WINDOW_MS 50                      // 即時分析窗口毫秒數 (未使用於目前RMS計算)
+#define WAVEFORM_DISPLAY_DURATION_SEC 0.5f                  // 波形顯示持續時間 (秒)
 
-// Singing Validation Constants
-#define MIN_RECORDING_DURATION_SECONDS 1.0f // Min 按鈕間時間
-#define REQUIRED_SINGING_PROPORTION (1.0f / 3.0f) // 唱歌音量達標時間佔按鈕間時間的比例
-const double SINGING_TOTAL_TIME_THRESHOLD = 20.0; // 唱歌總時間 (actual_end - actual_start) 需大於20秒
-const double SINGING_DETECTION_MIN_STREAK_DURATION = 0.2; // 持續0.2秒達threshold才算有效歌唱片段
+// 歌唱驗證常數
+#define MIN_RECORDING_DURATION_SECONDS 1.0f                 // 按鈕按下到放開的最短時間
+#define REQUIRED_SINGING_PROPORTION (1.0f / 3.0f)           // 歌唱音量達標時間佔按鈕間時間的比例
+const double SINGING_TOTAL_TIME_THRESHOLD = 20.0;           // 歌唱總時間 (actual_end - actual_start) 需大於20秒
+const double SINGING_DETECTION_MIN_STREAK_DURATION = 0.2;   // 持續0.2秒音量達閾值才算有效歌唱片段
 
-// Relative Volume Constants
-#define NOISE_CALC_WINDOW_SAMPLES (AUDIO_SAMPLE_RATE / 5) // Not actively used in current logic but kept for structure
-#define RMS_ANALYSIS_WINDOW_SAMPLES (AUDIO_SAMPLE_RATE / 20) // 50ms window for current volume and singing check
-#define SINGING_RMS_THRESHOLD_MULTIPLIER 3.0f // Current RMS must be X times background RMS
-#define MIN_ABSOLUTE_RMS_FOR_SINGING 150.0f    // Minimum RMS to be considered singing (prevents silence being loud vs silence)
-#define INITIAL_BACKGROUND_RMS_GUESS 200.0f   // Initial guess for background RMS
-
-
-// Static global variables for audio recording
-static HWAVEIN hWaveIn = NULL;
-static WAVEHDR waveHdr;
-static char* pWaveBuffer = NULL;
-// allegro_recording_start_time is essentially time_start_button_press for elapsed calculation
-static double allegro_recording_start_time = 0.0;
+// 相對音量常數
+#define NOISE_CALC_WINDOW_SAMPLES (AUDIO_SAMPLE_RATE / 5)   // 噪音計算窗口樣本數 (目前邏輯未使用，保留結構)
+#define RMS_ANALYSIS_WINDOW_SAMPLES (AUDIO_SAMPLE_RATE / 20) // 50毫秒窗口，用於目前音量和歌唱檢查
+#define SINGING_RMS_THRESHOLD_MULTIPLIER 3.0f               // 目前 RMS 必須是背景 RMS 的 X 倍
+#define MIN_ABSOLUTE_RMS_FOR_SINGING 150.0f                 // 被視為歌唱的最低 RMS (防止靜音環境下的小聲誤判為大聲)
+#define INITIAL_BACKGROUND_RMS_GUESS 200.0f                 // 背景 RMS 的初始猜測值
 
 
-static bool isActuallyRecording = false;
-static bool displayPleaseSingMessage = false;
-static float overall_button_to_button_duration = 0.0f; // Renamed from audioLengthSeconds
+// 音訊錄製相關的靜態全域變數
+static HWAVEIN hWaveIn = NULL;                              // Windows 音訊輸入裝置控制代碼
+static WAVEHDR waveHdr;                                     // Windows 音訊緩衝區標頭
+static char* pWaveBuffer = NULL;                            // 指向音訊緩衝區的指標
+static double allegro_recording_start_time = 0.0;           // Allegro 開始錄製的時間點 (按下按鈕後，或倒數計時結束後)
 
-// Static global variables for real-time feedback & relative volume
-static float current_recording_elapsed_time_sec = 0.0f;
-static bool current_volume_is_loud_enough = false; // Based on relative volume now
-static float current_background_rms = INITIAL_BACKGROUND_RMS_GUESS;
-// Removed unused noise_calc_buffer_idx and noise_calc_buffer_filled, recent_samples_for_noise_calc
+static bool isActuallyRecording = false;                    // 是否真的正在錄音 (硬體層面)
+static bool displayPleaseSingMessage = false;               // 是否顯示「請唱歌」提示訊息
+static float overall_button_to_button_duration = 0.0f;      // 按鈕按下到放開的總時長
 
-static bool force_audio_too_short_for_test = false; // For debugging
+// 即時回饋與相對音量相關的靜態全域變數
+static float current_recording_elapsed_time_sec = 0.0f;     // 目前錄製已過時間 (秒)
+static bool current_volume_is_loud_enough = false;          // 目前音量是否足夠大 (基於相對音量)
+static float current_background_rms = INITIAL_BACKGROUND_RMS_GUESS; // 目前背景 RMS
 
-static MinigameFlowerPlant flower_plant;
-static Button minigame_buttons[NUM_MINIGAME1_BUTTONS];
-static bool seed_planted = false;
-static bool is_singing = false;
-static const int songs_to_flower = 8;
-static bool minigame_srand_called = false;
+static bool force_audio_too_short_for_test = false;         // 用於除錯，強制音訊過短
 
-// New static global variables for detailed singing timing as per request
-static double time_start_button_press = 0.0;    // User clicks "Start Singing"
-static double time_end_button_press = 0.0;      // User clicks "Finish Singing"
-static double actual_singing_start_time = -1.0;          // First time audio threshold met for 0.2s (start of that 0.2s)
-static double current_actual_singing_end_time = -1.0;    // Continuously updated end of the latest 0.2s singing streak
-static double locked_successful_singing_end_time = -1.0; // If core requirements met, this locks the successful singing end time
-static bool has_achieved_lockable_success = false;       // Flag if core singing requirements (e.g. total singing > 20s) met during recording
+static MinigameFlowerPlant flower_plant;                    // 小遊戲花朵植物結構
+static Button minigame_buttons[NUM_MINIGAME1_BUTTONS];      // 小遊戲按鈕陣列
+static bool seed_planted = false;                           // 種子是否已種下
+static bool is_singing = false;                             // 是否處於「唱歌」狀態 (邏輯層面，倒數計時後才為 true)
+static const int songs_to_flower = 8;                       // 種出花朵需要的歌曲數量
+static bool minigame_srand_called = false;                  // srand 是否已在小遊戲中呼叫過
 
-// Internal state for detecting singing streaks
-static bool internal_was_loud_last_frame = false;
-static double internal_current_loud_streak_began_at_time = 0.0;
+// 新增的詳細歌唱計時靜態全域變數
+static double time_start_button_press = 0.0;                // 使用者點擊「開始唱歌」的確切時間 (倒數後)
+static double time_end_button_press = 0.0;                  // 使用者點擊「完成歌唱」的時間
+static double actual_singing_start_time = -1.0;             // 音訊首次達到閾值並持續0.2秒的時間點 (該0.2秒的開始)
+static double current_actual_singing_end_time = -1.0;       // 持續更新的最新0.2秒歌唱片段的結束時間
+static double locked_successful_singing_end_time = -1.0;    // 如果核心需求滿足，此變數鎖定成功的歌唱結束時間
+static bool has_achieved_lockable_success = false;          // 標記在錄製期間是否已滿足核心歌唱需求
+
+// 偵測歌唱片段的內部狀態
+static bool internal_was_loud_last_frame = false;           // 內部：上一幀音量是否夠大
+static double internal_current_loud_streak_began_at_time = 0.0; // 內部：目前大聲片段開始的時間
+
+// 321 倒數動畫相關變數
+static bool is_in_countdown_animation = false;              // 是否正在進行321倒數動畫
+static double countdown_start_time = 0.0;                   // 倒數動畫開始時間
+static int countdown_value = 3;                             // 目前倒數顯示的數字
+static bool background_rms_calculation_locked = false;      // 背景音量計算是否已完成並鎖定
+
+// 新增：用於倒數計時的大字型
+static ALLEGRO_FONT *large_font = NULL;
 
 
-static void prepare_audio_recording(void);
-static void start_actual_audio_recording(void);
-static bool stop_actual_audio_recording(void);
-static void cleanup_audio_recording(void);
-static float calculate_rms(const short* samples, int count);
+static void prepare_audio_recording(void);                  // 準備音訊錄製
+static void start_actual_audio_recording(void);             // 開始實際的音訊錄製
+static bool stop_actual_audio_recording(void);              // 停止實際的音訊錄製並進行驗證
+static void cleanup_audio_recording(void);                  // 清理音訊錄製資源
+static float calculate_rms(const short* samples, int count); // 計算 RMS 值
 
 
 void init_minigame1(void) {
@@ -99,15 +105,34 @@ void init_minigame1(void) {
         minigame_srand_called = true;
     }
     if (!al_is_system_installed()) {
-        al_init();
+        if (!al_init()) {
+            fprintf(stderr, "錯誤：無法初始化 Allegro 系統。\n");
+            // 嚴重錯誤，可能需要退出
+            return;
+        }
+    }
+
+    // 確保字型和TTF插件已初始化 (通常在主程式開始時做一次即可)
+    if (!al_is_font_addon_initialized()) {
+        if (!al_init_font_addon()) {
+            fprintf(stderr, "錯誤：無法初始化字型插件。\n");
+            // 處理錯誤，可能需要退出遊戲
+        }
+    }
+    if (!al_is_ttf_addon_initialized()) {
+        if (!al_init_ttf_addon()) {
+            fprintf(stderr, "錯誤：無法初始化TTF字型插件。\n");
+            // 處理錯誤
+        }
     }
 
     force_audio_too_short_for_test = false;
 
-    cleanup_audio_recording();
-    prepare_audio_recording();
+    cleanup_audio_recording(); // 清理任何先前的錄製資源 (包括 large_font)
 
     is_singing = false;
+    is_in_countdown_animation = false;
+    background_rms_calculation_locked = true;
 
     displayPleaseSingMessage = false;
     overall_button_to_button_duration = 0.0f;
@@ -116,7 +141,6 @@ void init_minigame1(void) {
     current_volume_is_loud_enough = false;
     current_background_rms = INITIAL_BACKGROUND_RMS_GUESS;
 
-    // Reset new timing variables
     time_start_button_press = 0.0;
     time_end_button_press = 0.0;
     actual_singing_start_time = -1.0;
@@ -128,8 +152,20 @@ void init_minigame1(void) {
     internal_current_loud_streak_began_at_time = 0.0;
     allegro_recording_start_time = 0.0;
 
+    // 載入用於倒數的大字型
+    // cleanup_audio_recording 中已包含銷毀 large_font 的邏輯，
+    // 因此此處無需檢查 large_font 是否已存在。
+    // *** 重要：請將 "pirulen.ttf" 替換為你實際的字型檔案名稱和路徑 ***
+    // 字型大小 72 是一個範例，你可以調整
+    // 如果你沒有 pirulen.ttf，可以使用其他如 "arial.ttf" 等常見字型
+    large_font = al_load_ttf_font("pirulen.ttf", 72, 0);
+    if (!large_font) {
+        fprintf(stderr, "警告：無法載入大型倒數字型 (例如 pirulen.ttf, 大小 72)。將使用預設字型。\n");
+        // 如果載入失敗，render 函數中會回退到使用 font
+    }
 
-    printf("DEBUG: Minigame Flower initialized/reset.\n");
+
+    printf("DEBUG: 小遊戲花朵已初始化/重置。\n");
 
     float button_width = 200;
     float button_height = 50;
@@ -162,21 +198,18 @@ static float calculate_rms(const short* samples, int count) {
         sum_sq += (double)samples[i] * samples[i];
     }
     float rms = (float)sqrt(sum_sq / count);
-    // Print RMS for very short windows (for debug, but avoid flooding)
-    if (count == RMS_ANALYSIS_WINDOW_SAMPLES) {
-        printf("[DEBUG][RMS] calc_rms: count=%d, rms=%.2f, first_sample=%d\n", count, rms, samples[0]);
-    }
     return rms;
 }
 
 
 void render_minigame1(void) {
-    al_clear_to_color(al_map_rgb(50, 50, 70));
-    char display_text_buffer[256]; // General buffer for formatted text
-    float base_text_y = WAVEFORM_AREA_Y - 70; // Start Y for timing info
+    al_clear_to_color(al_map_rgb(50, 50, 70)); // 清除畫面為深藍灰色
+    char display_text_buffer[256]; // 用於格式化文字的通用緩衝區
+    float y_offset = 60; // 統一向下移動的距離
+    float base_text_y = WAVEFORM_AREA_Y - 70 + y_offset; // 計時資訊的起始 Y 座標
 
-    // Display main recording/singing times
-    if (is_singing) {
+    // 顯示主要的錄製/歌唱時間
+    if (is_singing && !is_in_countdown_animation) { // 僅在唱歌且非倒數時顯示
         char actual_start_str[20], current_actual_end_str[20], locked_end_str[20];
         if (actual_singing_start_time < 0.0) strcpy(actual_start_str, "N/A");
         else sprintf(actual_start_str, "%.2fs", actual_singing_start_time);
@@ -196,20 +229,19 @@ void render_minigame1(void) {
             al_draw_text(font, al_map_rgb(180, 255, 180), WAVEFORM_AREA_X, base_text_y + 20, 0, display_text_buffer);
         }
 
-
-        // Existing elapsed time and RMS display
+        // 現有的已錄製時間和 RMS 顯示
         sprintf(display_text_buffer, "已錄製: %.1f s (背景RMS: %.0f)", current_recording_elapsed_time_sec, current_background_rms);
         al_draw_text(font, al_map_rgb(255, 255, 255), WAVEFORM_AREA_X, base_text_y + (has_achieved_lockable_success ? 40 : 20), 0, display_text_buffer);
 
         ALLEGRO_COLOR vol_indicator_box_color = current_volume_is_loud_enough ? al_map_rgb(0, 200, 0) : al_map_rgb(200, 0, 0);
         const char* vol_text = current_volume_is_loud_enough ? "音量達標!" : "音量不足";
-        float vol_text_width = al_get_text_width(font, vol_text);
-        float vol_indicator_x_start = WAVEFORM_AREA_X + WAVEFORM_AREA_WIDTH - vol_text_width - 20;
+        float vol_text_width_val = al_get_text_width(font, vol_text); // 避免與函數參數重名
+        float vol_indicator_x_start = WAVEFORM_AREA_X + WAVEFORM_AREA_WIDTH - vol_text_width_val - 20;
         al_draw_filled_rectangle(vol_indicator_x_start, base_text_y + (has_achieved_lockable_success ? 40 : 20),
                                  WAVEFORM_AREA_X + WAVEFORM_AREA_WIDTH, base_text_y + (has_achieved_lockable_success ? 40 : 20) + 20, vol_indicator_box_color);
         al_draw_text(font, al_map_rgb(0,0,0), vol_indicator_x_start + 5, base_text_y + (has_achieved_lockable_success ? 40 : 20) + (20-al_get_font_line_height(font))/2.0f, 0, vol_text);
 
-    } else if (time_end_button_press > 0.0 && time_start_button_press > 0.0) { // After singing finished and was started
+    } else if (time_end_button_press > 0.0 && time_start_button_press > 0.0 && !is_in_countdown_animation) { // 歌唱完成後且已開始過 (非倒數時)
         char actual_start_str[20], final_actual_end_str[20];
         if (actual_singing_start_time < 0.0) strcpy(actual_start_str, "N/A");
         else sprintf(actual_start_str, "%.2fs", actual_singing_start_time);
@@ -221,35 +253,36 @@ void render_minigame1(void) {
         sprintf(display_text_buffer, "按鈕間: %.2fs 至 %.2fs | 實際演唱: %s 至 %s",
                 time_start_button_press, time_end_button_press, actual_start_str, final_actual_end_str);
 
-        float text_y_pos = minigame_buttons[0].y - 60; // Position above buttons
+        float text_y_pos = minigame_buttons[0].y - 60 + y_offset; // 按鈕上方的顯示位置
         al_draw_text(font, al_map_rgb(220, 220, 180), SCREEN_WIDTH / 2.0f, text_y_pos, ALLEGRO_ALIGN_CENTER, display_text_buffer);
-         if(has_achieved_lockable_success){ // Display if success was due to lock
-            if(displayPleaseSingMessage == false) { // Only if it passed validation
+         if(has_achieved_lockable_success){ // 如果成功是由於鎖定
+            if(displayPleaseSingMessage == false) { // 僅在通過驗證時顯示
                  al_draw_text(font, al_map_rgb(180, 255, 180), SCREEN_WIDTH / 2.0f, text_y_pos + 20, ALLEGRO_ALIGN_CENTER, "核心演唱已達標並通過!");
             }
         }
     }
 
+    // 321 倒數動畫繪製
+    if (is_in_countdown_animation) {
+        sprintf(display_text_buffer, "%d", countdown_value);
+        // 如果 large_font 成功載入，則使用它；否則回退到普通的 font
+        ALLEGRO_FONT *font_for_countdown = large_font ? large_font : font;
+        float countdown_text_height = al_get_font_line_height(font_for_countdown);
 
-    if (is_singing && isActuallyRecording && hWaveIn != NULL && pWaveBuffer != NULL) {
-        // --- DEBUG: Print buffer info for waveform ---
+        al_draw_text(font_for_countdown, al_map_rgb(255, 255, 0), // 黃色大號數字
+                     SCREEN_WIDTH / 2.0f, SCREEN_HEIGHT / 2.0f - countdown_text_height / 2.0f,
+                     ALLEGRO_ALIGN_CENTER, display_text_buffer);
+        al_draw_text(font, al_map_rgb(200,200,200), SCREEN_WIDTH / 2.0f, SCREEN_HEIGHT / 2.0f + countdown_text_height, ALLEGRO_ALIGN_CENTER, "計算背景音量中...");
+    }
+    // 波形繪製 (僅在唱歌且非倒數時)
+    else if (is_singing && isActuallyRecording && hWaveIn != NULL && pWaveBuffer != NULL) {
         DWORD bytes_per_sample = AUDIO_BITS_PER_SAMPLE / 8;
         DWORD total_samples_recorded_so_far = waveHdr.dwBytesRecorded / bytes_per_sample;
-        printf("[DEBUG][Waveform] dwBytesRecorded=%lu, total_samples=%lu\n", waveHdr.dwBytesRecorded, total_samples_recorded_so_far);
-
         int num_samples_in_waveform_timespan = (int)(AUDIO_SAMPLE_RATE * WAVEFORM_DISPLAY_DURATION_SEC);
 
         if (total_samples_recorded_so_far > 1 && num_samples_in_waveform_timespan > 0 && WAVEFORM_AREA_WIDTH > 1) {
             short* all_samples = (short*)pWaveBuffer;
-            // Print first 5 samples for debug
-            printf("[DEBUG][Waveform] First 5 samples: ");
-            for (int i = 0; i < 5 && i < (int)total_samples_recorded_so_far; ++i) {
-                printf("%d ", all_samples[i]);
-            }
-            printf("\n");
-
             float prev_x_pos = WAVEFORM_AREA_X;
-
             int start_buffer_idx = (total_samples_recorded_so_far > num_samples_in_waveform_timespan) ?
                                    (total_samples_recorded_so_far - num_samples_in_waveform_timespan) : 0;
             int samples_available_in_window = total_samples_recorded_so_far - start_buffer_idx;
@@ -268,7 +301,6 @@ void render_minigame1(void) {
                     if(current_sample_idx_in_buffer >= total_samples_recorded_so_far) current_sample_idx_in_buffer = total_samples_recorded_so_far -1;
                     if(current_sample_idx_in_buffer < 0) current_sample_idx_in_buffer = 0;
 
-
                     short sample_value = all_samples[current_sample_idx_in_buffer];
                     float current_x_pos = WAVEFORM_AREA_X + screen_pixel_x;
                     float current_y_pos = WAVEFORM_AREA_Y + (WAVEFORM_AREA_HEIGHT / 2.0f) -
@@ -282,19 +314,17 @@ void render_minigame1(void) {
                 }
             }
         }
-
-    } else if (is_singing) {
+    } else if (is_singing && !is_in_countdown_animation) { // 正在唱歌但硬體未就緒 (非倒數時)
         al_draw_text(font, al_map_rgb(200,200,200), WAVEFORM_AREA_X + WAVEFORM_AREA_WIDTH/2.0f, WAVEFORM_AREA_Y + WAVEFORM_AREA_HEIGHT/2.0f - al_get_font_line_height(font)/2.0f, ALLEGRO_ALIGN_CENTER, "等待麥克風...");
     }
 
-    float plant_base_y = WAVEFORM_AREA_Y + WAVEFORM_AREA_HEIGHT + SCREEN_HEIGHT * 0.20f;
+    // 植物繪製邏輯
+    float plant_base_y = WAVEFORM_AREA_Y + WAVEFORM_AREA_HEIGHT + SCREEN_HEIGHT * 0.20f + y_offset;
     if (plant_base_y > SCREEN_HEIGHT * 0.75f) plant_base_y = SCREEN_HEIGHT * 0.75f;
     float plant_x = SCREEN_WIDTH / 2.0f;
     float stem_height = 20 + flower_plant.growth_stage * 15;
 
-    // Plant drawing logic (condensed for brevity, same as before)
-    if (!seed_planted) { /* ... */ } else { /* ... */ }
-        if (!seed_planted) {
+    if (!seed_planted) {
         al_draw_text(font, al_map_rgb(255, 255, 255), plant_x, plant_base_y - 50, ALLEGRO_ALIGN_CENTER, "請先種下種子");
     } else {
         if (flower_plant.growth_stage == 0) {
@@ -342,28 +372,51 @@ void render_minigame1(void) {
         }
     }
 
-
-    if (displayPleaseSingMessage) {
+    // 顯示驗證失敗訊息
+    if (displayPleaseSingMessage && !is_in_countdown_animation) { // 非倒數時才顯示
         char validation_msg[128];
-        // Updated message to reflect all conditions
         sprintf(validation_msg, "按鈕間時間>%.0fs, 唱歌總時間>%.0fs, (若未鎖定)音量比例>%.0f%%",
                 MIN_RECORDING_DURATION_SECONDS, SINGING_TOTAL_TIME_THRESHOLD, REQUIRED_SINGING_PROPORTION * 100.0f);
-        float msg_y_pos = minigame_buttons[0].y - 30;
-        if (time_end_button_press > 0.0 && time_start_button_press > 0.0) { // if final stats are shown
-             msg_y_pos -= (has_achieved_lockable_success && !displayPleaseSingMessage ? 40 : 20); // Make more space if stats/lock info shown
+        float msg_y_pos = minigame_buttons[0].y - 30 + y_offset;
+        if (time_end_button_press > 0.0 && time_start_button_press > 0.0) {
+             msg_y_pos -= (has_achieved_lockable_success && !displayPleaseSingMessage ? 40 : 20);
         }
         al_draw_text(font, al_map_rgb(255, 100, 100), SCREEN_WIDTH / 2.0f, msg_y_pos, ALLEGRO_ALIGN_CENTER, validation_msg);
-         if (has_achieved_lockable_success && time_end_button_press > 0.0 && displayPleaseSingMessage) { // If it was locked but still failed
+         if (has_achieved_lockable_success && time_end_button_press > 0.0 && displayPleaseSingMessage) {
             al_draw_text(font, al_map_rgb(255,150,150), SCREEN_WIDTH/2.0f, msg_y_pos + 15, ALLEGRO_ALIGN_CENTER, "(核心曾達標但其他條件如按鈕時長未滿足)");
         }
     }
 
-    // --- Draw Buttons --- (condensed for brevity, same as before)
-    if (!seed_planted) { Button* b = &minigame_buttons[0]; al_draw_filled_rectangle(b->x, b->y, b->x + b->width, b->y + b->height, b->is_hovered ? b->hover_color : b->color); al_draw_text(font, b->text_color, b->x + b->width / 2.0f, b->y + (b->height / 2.0f) - (al_get_font_line_height(font) / 2.0f), ALLEGRO_ALIGN_CENTER, b->text); }
-    if (seed_planted && !is_singing && flower_plant.growth_stage < songs_to_flower) { Button* b = &minigame_buttons[1]; al_draw_filled_rectangle(b->x, b->y, b->x + b->width, b->y + b->height, b->is_hovered ? b->hover_color : b->color); al_draw_text(font, b->text_color, b->x + b->width / 2.0f, b->y + (b->height / 2.0f) - (al_get_font_line_height(font) / 2.0f), ALLEGRO_ALIGN_CENTER, b->text); }
-    else if (seed_planted && !is_singing && flower_plant.growth_stage >= songs_to_flower) { Button* b = &minigame_buttons[5]; al_draw_filled_rectangle(b->x, b->y, b->x + b->width, b->y + b->height, b->is_hovered ? b->hover_color : b->color); al_draw_text(font, b->text_color, b->x + b->width / 2.0f, b->y + (b->height / 2.0f) - (al_get_font_line_height(font) / 2.0f), ALLEGRO_ALIGN_CENTER, b->text); }
-    if (is_singing) { Button* b_restart = &minigame_buttons[2]; al_draw_filled_rectangle(b_restart->x, b_restart->y, b_restart->x + b_restart->width, b_restart->y + b_restart->height, b_restart->is_hovered ? b_restart->hover_color : b_restart->color); al_draw_text(font, b_restart->text_color, b_restart->x + b_restart->width / 2.0f, b_restart->y + (b_restart->height / 2.0f) - (al_get_font_line_height(font) / 2.0f), ALLEGRO_ALIGN_CENTER, b_restart->text); Button* b_finish = &minigame_buttons[3]; al_draw_filled_rectangle(b_finish->x, b_finish->y, b_finish->x + b_finish->width, b_finish->y + b_finish->height, b_finish->is_hovered ? b_finish->hover_color : b_finish->color); al_draw_text(font, b_finish->text_color, b_finish->x + b_finish->width / 2.0f, b_finish->y + (b_finish->height / 2.0f) - (al_get_font_line_height(font) / 2.0f), ALLEGRO_ALIGN_CENTER, b_finish->text); }
-    Button* b_exit = &minigame_buttons[4]; al_draw_filled_rectangle(b_exit->x, b_exit->y, b_exit->x + b_exit->width, b_exit->y + b_exit->height, b_exit->is_hovered ? b_exit->hover_color : b_exit->color); al_draw_text(font, b_exit->text_color, b_exit->x + b_exit->width / 2.0f, b_exit->y + (b_exit->height / 2.0f) - (al_get_font_line_height(font) / 2.0f), ALLEGRO_ALIGN_CENTER, b_exit->text);
+    // --- 繪製按鈕 ---
+    // 只有在非倒數動畫時才顯示主要操作按鈕
+    if (!is_in_countdown_animation) {
+        if (!seed_planted) {
+            Button* b = &minigame_buttons[0];
+            al_draw_filled_rectangle(b->x, b->y, b->x + b->width, b->y + b->height, b->is_hovered ? b->hover_color : b->color);
+            al_draw_text(font, b->text_color, b->x + b->width / 2.0f, b->y + (b->height / 2.0f) - (al_get_font_line_height(font) / 2.0f), ALLEGRO_ALIGN_CENTER, b->text);
+        }
+        if (seed_planted && !is_singing && flower_plant.growth_stage < songs_to_flower) {
+            Button* b = &minigame_buttons[1];
+            al_draw_filled_rectangle(b->x, b->y, b->x + b->width, b->y + b->height, b->is_hovered ? b->hover_color : b->color);
+            al_draw_text(font, b->text_color, b->x + b->width / 2.0f, b->y + (b->height / 2.0f) - (al_get_font_line_height(font) / 2.0f), ALLEGRO_ALIGN_CENTER, b->text);
+        } else if (seed_planted && !is_singing && flower_plant.growth_stage >= songs_to_flower) {
+            Button* b = &minigame_buttons[5]; // 採收按鈕
+            al_draw_filled_rectangle(b->x, b->y, b->x + b->width, b->y + b->height, b->is_hovered ? b->hover_color : b->color);
+            al_draw_text(font, b->text_color, b->x + b->width / 2.0f, b->y + (b->height / 2.0f) - (al_get_font_line_height(font) / 2.0f), ALLEGRO_ALIGN_CENTER, b->text);
+        }
+        if (is_singing) { // 唱歌時顯示「重新開始」和「完成歌唱」
+            Button* b_restart = &minigame_buttons[2];
+            al_draw_filled_rectangle(b_restart->x, b_restart->y, b_restart->x + b_restart->width, b_restart->y + b_restart->height, b_restart->is_hovered ? b_restart->hover_color : b_restart->color);
+            al_draw_text(font, b_restart->text_color, b_restart->x + b_restart->width / 2.0f, b_restart->y + (b_restart->height / 2.0f) - (al_get_font_line_height(font) / 2.0f), ALLEGRO_ALIGN_CENTER, b_restart->text);
+            Button* b_finish = &minigame_buttons[3];
+            al_draw_filled_rectangle(b_finish->x, b_finish->y, b_finish->x + b_finish->width, b_finish->y + b_finish->height, b_finish->is_hovered ? b_finish->hover_color : b_finish->color);
+            al_draw_text(font, b_finish->text_color, b_finish->x + b_finish->width / 2.0f, b_finish->y + (b_finish->height / 2.0f) - (al_get_font_line_height(font) / 2.0f), ALLEGRO_ALIGN_CENTER, b_finish->text);
+        }
+    }
+    // 離開按鈕總是顯示
+    Button* b_exit = &minigame_buttons[4];
+    al_draw_filled_rectangle(b_exit->x, b_exit->y, b_exit->x + b_exit->width, b_exit->y + b_exit->height, b_exit->is_hovered ? b_exit->hover_color : b_exit->color);
+    al_draw_text(font, b_exit->text_color, b_exit->x + b_exit->width / 2.0f, b_exit->y + (b_exit->height / 2.0f) - (al_get_font_line_height(font) / 2.0f), ALLEGRO_ALIGN_CENTER, b_exit->text);
 
 
     al_draw_text(font, al_map_rgb(220, 220, 255), SCREEN_WIDTH / 2.0f, 30, ALLEGRO_ALIGN_CENTER, "唱歌種花小遊戲");
@@ -373,76 +426,88 @@ void render_minigame1(void) {
 }
 
 void handle_minigame1_input(ALLEGRO_EVENT ev) {
-    // Input handling logic (condensed for brevity, same as before for button hover/clicks)
-    if (ev.type == ALLEGRO_EVENT_MOUSE_AXES) { /* ... */
+    if (ev.type == ALLEGRO_EVENT_MOUSE_AXES) {
         for (int i = 0; i < NUM_MINIGAME1_BUTTONS; ++i) { minigame_buttons[i].is_hovered = false; }
-        if (!seed_planted && ev.mouse.x >= minigame_buttons[0].x && ev.mouse.x <= minigame_buttons[0].x + minigame_buttons[0].width && ev.mouse.y >= minigame_buttons[0].y && ev.mouse.y <= minigame_buttons[0].y + minigame_buttons[0].height) { minigame_buttons[0].is_hovered = true;}
-        else if (seed_planted && !is_singing && flower_plant.growth_stage < songs_to_flower && ev.mouse.x >= minigame_buttons[1].x && ev.mouse.x <= minigame_buttons[1].x + minigame_buttons[1].width && ev.mouse.y >= minigame_buttons[1].y && ev.mouse.y <= minigame_buttons[1].y + minigame_buttons[1].height) { minigame_buttons[1].is_hovered = true; }
-        else if (seed_planted && !is_singing && flower_plant.growth_stage >= songs_to_flower && ev.mouse.x >= minigame_buttons[5].x && ev.mouse.x <= minigame_buttons[5].x + minigame_buttons[5].width && ev.mouse.y >= minigame_buttons[5].y && ev.mouse.y <= minigame_buttons[5].y + minigame_buttons[5].height) { minigame_buttons[5].is_hovered = true; }
-        else if (is_singing) { if (ev.mouse.x >= minigame_buttons[2].x && ev.mouse.x <= minigame_buttons[2].x + minigame_buttons[2].width && ev.mouse.y >= minigame_buttons[2].y && ev.mouse.y <= minigame_buttons[2].y + minigame_buttons[2].height) { minigame_buttons[2].is_hovered = true; } if (ev.mouse.x >= minigame_buttons[3].x && ev.mouse.x <= minigame_buttons[3].x + minigame_buttons[3].width && ev.mouse.y >= minigame_buttons[3].y && ev.mouse.y <= minigame_buttons[3].y + minigame_buttons[3].height) { minigame_buttons[3].is_hovered = true; } }
+        if (!is_in_countdown_animation) {
+            if (!seed_planted && ev.mouse.x >= minigame_buttons[0].x && ev.mouse.x <= minigame_buttons[0].x + minigame_buttons[0].width && ev.mouse.y >= minigame_buttons[0].y && ev.mouse.y <= minigame_buttons[0].y + minigame_buttons[0].height) { minigame_buttons[0].is_hovered = true;}
+            else if (seed_planted && !is_singing && flower_plant.growth_stage < songs_to_flower && ev.mouse.x >= minigame_buttons[1].x && ev.mouse.x <= minigame_buttons[1].x + minigame_buttons[1].width && ev.mouse.y >= minigame_buttons[1].y && ev.mouse.y <= minigame_buttons[1].y + minigame_buttons[1].height) { minigame_buttons[1].is_hovered = true; }
+            else if (seed_planted && !is_singing && flower_plant.growth_stage >= songs_to_flower && ev.mouse.x >= minigame_buttons[5].x && ev.mouse.x <= minigame_buttons[5].x + minigame_buttons[5].width && ev.mouse.y >= minigame_buttons[5].y && ev.mouse.y <= minigame_buttons[5].y + minigame_buttons[5].height) { minigame_buttons[5].is_hovered = true; }
+            else if (is_singing) {
+                if (ev.mouse.x >= minigame_buttons[2].x && ev.mouse.x <= minigame_buttons[2].x + minigame_buttons[2].width && ev.mouse.y >= minigame_buttons[2].y && ev.mouse.y <= minigame_buttons[2].y + minigame_buttons[2].height) { minigame_buttons[2].is_hovered = true; }
+                if (ev.mouse.x >= minigame_buttons[3].x && ev.mouse.x <= minigame_buttons[3].x + minigame_buttons[3].width && ev.mouse.y >= minigame_buttons[3].y && ev.mouse.y <= minigame_buttons[3].y + minigame_buttons[3].height) { minigame_buttons[3].is_hovered = true; }
+            }
+        }
         if (ev.mouse.x >= minigame_buttons[4].x && ev.mouse.x <= minigame_buttons[4].x + minigame_buttons[4].width && ev.mouse.y >= minigame_buttons[4].y && ev.mouse.y <= minigame_buttons[4].y + minigame_buttons[4].height) { minigame_buttons[4].is_hovered = true; }
     }
     else if (ev.type == ALLEGRO_EVENT_MOUSE_BUTTON_DOWN) {
         if (ev.mouse.button == 1) {
             bool button_clicked_this_event = false;
-            if (!seed_planted && minigame_buttons[0].is_hovered) { // Plant Seed
-                seed_planted = true; is_singing = false;
-                flower_plant.songs_sung = 0; flower_plant.growth_stage = 0;
-                displayPleaseSingMessage = false; button_clicked_this_event = true;
-                time_start_button_press = 0.0; // Reset for next session's display logic
-                time_end_button_press = 0.0;
-                has_achieved_lockable_success = false; // Crucial reset
-            }
-            else if (seed_planted && !is_singing && flower_plant.growth_stage < songs_to_flower && minigame_buttons[1].is_hovered) { // Start Singing
-                is_singing = true; start_actual_audio_recording(); // This resets all timing vars for the new session
-                printf("Minigame: Start Singing button clicked.\n"); button_clicked_this_event = true;
-            }
-            else if (is_singing) {
-                if (minigame_buttons[2].is_hovered) { // Restart singing (while already singing)
-                    // Stop current recording abruptly, then start a new one
-                    if (hWaveIn && isActuallyRecording) {
-                        waveInReset(hWaveIn); // Stop data flow
-                        if (waveHdr.dwFlags & WHDR_PREPARED) {
-                            waveInUnprepareHeader(hWaveIn, &waveHdr, sizeof(WAVEHDR)); // Unprepare old header
-                        }
-                    }
-                    start_actual_audio_recording(); // Re-initializes everything for a fresh start
-                    printf("Minigame: Restart singing button clicked.\n"); button_clicked_this_event = true;
+            if (!is_in_countdown_animation) {
+                if (!seed_planted && minigame_buttons[0].is_hovered) {
+                    seed_planted = true; is_singing = false;
+                    flower_plant.songs_sung = 0; flower_plant.growth_stage = 0;
+                    displayPleaseSingMessage = false; button_clicked_this_event = true;
+                    time_start_button_press = 0.0; time_end_button_press = 0.0;
+                    has_achieved_lockable_success = false;
                 }
-                else if (minigame_buttons[3].is_hovered) { // Finish Singing
-                    is_singing = false; // Set this first
-                    bool sound_was_valid = stop_actual_audio_recording(); // Perform all checks
-                    printf("Minigame: Finish Singing button clicked.\n");
-                    if (sound_was_valid) {
-                        if (flower_plant.songs_sung < songs_to_flower) { flower_plant.songs_sung++; }
-                        flower_plant.growth_stage = flower_plant.songs_sung;
-                        if(flower_plant.growth_stage == songs_to_flower){ flower_plant.which_flower = (rand() % 2); }
-                        printf("DEBUG: Valid song recorded, growth updated.\n");
-                    } else {
-                        printf("DEBUG: Invalid sound detected. Song not counted.\n");
-                    }
-                    // Reset live feedback vars, but keep final times for display until next "Start Singing"
-                    current_recording_elapsed_time_sec = 0.0f;
-                    current_volume_is_loud_enough = false;
+                else if (seed_planted && !is_singing && flower_plant.growth_stage < songs_to_flower && minigame_buttons[1].is_hovered) {
+                    is_in_countdown_animation = true;
+                    countdown_start_time = al_get_time();
+                    countdown_value = 3;
+                    background_rms_calculation_locked = false;
+                    current_background_rms = INITIAL_BACKGROUND_RMS_GUESS;
+                    start_actual_audio_recording();
+                    printf("小遊戲: 開始唱歌按鈕點擊，進入倒數計時。\n");
                     button_clicked_this_event = true;
                 }
+                else if (is_singing) {
+                    if (minigame_buttons[2].is_hovered) {
+                        if (hWaveIn && isActuallyRecording) {
+                            waveInReset(hWaveIn);
+                            if (waveHdr.dwFlags & WHDR_PREPARED) {
+                                waveInUnprepareHeader(hWaveIn, &waveHdr, sizeof(WAVEHDR));
+                            }
+                        }
+                        is_in_countdown_animation = true;
+                        countdown_start_time = al_get_time();
+                        countdown_value = 3;
+                        background_rms_calculation_locked = false;
+                        current_background_rms = INITIAL_BACKGROUND_RMS_GUESS;
+                        start_actual_audio_recording();
+                        printf("小遊戲: 重新開始唱歌按鈕點擊，進入倒數計時。\n");
+                        button_clicked_this_event = true;
+                    }
+                    else if (minigame_buttons[3].is_hovered) {
+                        is_singing = false;
+                        bool sound_was_valid = stop_actual_audio_recording();
+                        printf("小遊戲: 完成歌唱按鈕點擊。\n");
+                        if (sound_was_valid) {
+                            if (flower_plant.songs_sung < songs_to_flower) { flower_plant.songs_sung++; }
+                            flower_plant.growth_stage = flower_plant.songs_sung;
+                            if(flower_plant.growth_stage == songs_to_flower){ flower_plant.which_flower = (rand() % 2); }
+                            printf("DEBUG: 有效歌曲已錄製，成長已更新。\n");
+                        } else {
+                            printf("DEBUG: 偵測到無效聲音。歌曲未計數。\n");
+                        }
+                        current_recording_elapsed_time_sec = 0.0f;
+                        current_volume_is_loud_enough = false;
+                        button_clicked_this_event = true;
+                    }
+                }
+                else if (seed_planted && !is_singing && flower_plant.growth_stage >= songs_to_flower && minigame_buttons[5].is_hovered) {
+                    if (flower_plant.which_flower == 0) { player.item_quantities[0]++; printf("DEBUG: 採收了一朵普通花! 總數: %d\n", player.item_quantities[0]); }
+                    else { player.item_quantities[1]++; printf("DEBUG: 採收了一朵惡魔花. 總數: %d\n", player.item_quantities[1]); }
+                    flower_plant.songs_sung = 0; flower_plant.growth_stage = 0;
+                    seed_planted = false; displayPleaseSingMessage = false; button_clicked_this_event = true;
+                    time_start_button_press = 0.0; time_end_button_press = 0.0;
+                    has_achieved_lockable_success = false;
+                }
             }
-            else if (seed_planted && !is_singing && flower_plant.growth_stage >= songs_to_flower && minigame_buttons[5].is_hovered) { // Harvest
-                if (flower_plant.which_flower == 0) { player.item_quantities[0]++; printf("DEBUG: Harvested a Regular flower! Total: %d\n", player.item_quantities[0]); }
-                else { player.item_quantities[1]++; printf("DEBUG: Harvested a Devil flower. Total: %d\n", player.item_quantities[1]); }
-                flower_plant.songs_sung = 0; flower_plant.growth_stage = 0;
-                seed_planted = false; displayPleaseSingMessage = false; button_clicked_this_event = true;
-                time_start_button_press = 0.0; // Reset for next session's display logic
-                time_end_button_press = 0.0;
-                has_achieved_lockable_success = false; // Crucial reset
-            }
-            if (minigame_buttons[4].is_hovered) { // Exit Minigame
-                if(is_singing && isActuallyRecording && hWaveIn) {
-                    // If exiting while singing, capture end time but don't validate
-                    time_end_button_press = al_get_time();
+            if (minigame_buttons[4].is_hovered) {
+                if((is_singing || is_in_countdown_animation) && isActuallyRecording && hWaveIn) {
                     waveInReset(hWaveIn);
                 }
-                is_singing = false; // Ensure is_singing is false before cleanup
+                is_singing = false; is_in_countdown_animation = false;
                 cleanup_audio_recording();
                 game_phase = GROWTH;
                 button_clicked_this_event = true;
@@ -451,12 +516,11 @@ void handle_minigame1_input(ALLEGRO_EVENT ev) {
         }
     }
     else if (ev.type == ALLEGRO_EVENT_KEY_DOWN) {
-        if (ev.keyboard.keycode == ALLEGRO_KEY_ESCAPE) { // Exit Minigame
-            if(is_singing && isActuallyRecording && hWaveIn) {
-                time_end_button_press = al_get_time();
+        if (ev.keyboard.keycode == ALLEGRO_KEY_ESCAPE) {
+            if((is_singing || is_in_countdown_animation) && isActuallyRecording && hWaveIn) {
                 waveInReset(hWaveIn);
             }
-            is_singing = false; // Ensure is_singing is false before cleanup
+            is_singing = false; is_in_countdown_animation = false;
             cleanup_audio_recording();
             game_phase = GROWTH;
         }
@@ -464,341 +528,274 @@ void handle_minigame1_input(ALLEGRO_EVENT ev) {
 }
 
 void update_minigame1(void) {
-    if (is_singing && isActuallyRecording && hWaveIn != NULL && pWaveBuffer != NULL) {
-        double current_time_for_update = al_get_time();
-        current_recording_elapsed_time_sec = (float)(current_time_for_update - allegro_recording_start_time);
+    double current_time_for_update = al_get_time();
 
-        DWORD bytes_per_sample = AUDIO_BITS_PER_SAMPLE / 8;
-        DWORD total_samples_in_buffer_now = waveHdr.dwBytesRecorded / bytes_per_sample;
+    if (is_in_countdown_animation) {
+        double elapsed_countdown_time = current_time_for_update - countdown_start_time;
+        if (elapsed_countdown_time < 1.0) countdown_value = 3;
+        else if (elapsed_countdown_time < 2.0) countdown_value = 2;
+        else if (elapsed_countdown_time < 3.0) countdown_value = 1;
+        else { // 倒數結束
+            is_in_countdown_animation = false;
+            background_rms_calculation_locked = true; // 鎖定背景音量
+            is_singing = true; // 正式開始唱歌
 
-        short* live_samples_ptr = (short*)pWaveBuffer;
+            allegro_recording_start_time = current_time_for_update;
+            time_start_button_press = allegro_recording_start_time;
 
-        printf("[DEBUG][Update] is_singing=%d, isActuallyRecording=%d, hWaveIn=%p, pWaveBuffer=%p, total_samples_in_buffer_now=%lu, elapsed=%.2f\n",
-            is_singing, isActuallyRecording, hWaveIn, pWaveBuffer, total_samples_in_buffer_now, current_recording_elapsed_time_sec);
+            current_recording_elapsed_time_sec = 0.0f;
+            actual_singing_start_time = -1.0;
+            current_actual_singing_end_time = -1.0;
+            locked_successful_singing_end_time = -1.0;
+            has_achieved_lockable_success = false;
+            internal_was_loud_last_frame = false;
+            internal_current_loud_streak_began_at_time = 0.0;
+            displayPleaseSingMessage = false;
 
-        // --- Background Noise Calculation ---
-        if (total_samples_in_buffer_now >= RMS_ANALYSIS_WINDOW_SAMPLES) {
-            const short* latest_samples_for_noise = live_samples_ptr + (total_samples_in_buffer_now - RMS_ANALYSIS_WINDOW_SAMPLES);
-            float latest_rms = calculate_rms(latest_samples_for_noise, RMS_ANALYSIS_WINDOW_SAMPLES);
-            printf("[DEBUG][Update] BG RMS: latest_rms=%.2f, current_background_rms=%.2f\n", latest_rms, current_background_rms);
-            if (!current_volume_is_loud_enough || current_background_rms < 50) {
-                if (latest_rms < current_background_rms * 1.5) { // Only update if not drastically louder
-                    current_background_rms = (current_background_rms * 0.99f) + (latest_rms * 0.01f);
-                    if (current_background_rms < 50) current_background_rms = 50; // Floor for background
-                }
-            }
+            printf("DEBUG: 倒數結束。背景 RMS 已鎖定為 %.0f。正式開始唱歌。\n", current_background_rms);
         }
 
-        // --- Current Volume Check (Singing Detection for feedback) ---
+        if (isActuallyRecording && hWaveIn != NULL && pWaveBuffer != NULL && !background_rms_calculation_locked) {
+            DWORD bytes_per_sample = AUDIO_BITS_PER_SAMPLE / 8;
+            DWORD total_samples_in_buffer_now = waveHdr.dwBytesRecorded / bytes_per_sample;
+            short* live_samples_ptr = (short*)pWaveBuffer;
+
+            if (total_samples_in_buffer_now >= RMS_ANALYSIS_WINDOW_SAMPLES) {
+                const short* latest_samples_for_noise = live_samples_ptr + (total_samples_in_buffer_now - RMS_ANALYSIS_WINDOW_SAMPLES);
+                float latest_rms = calculate_rms(latest_samples_for_noise, RMS_ANALYSIS_WINDOW_SAMPLES);
+                current_background_rms = (current_background_rms * 0.90f) + (latest_rms * 0.10f);
+                if (current_background_rms < 50) current_background_rms = 50;
+            }
+        }
+    }
+    else if (is_singing && isActuallyRecording && hWaveIn != NULL && pWaveBuffer != NULL) {
+        current_recording_elapsed_time_sec = (float)(current_time_for_update - allegro_recording_start_time);
+        DWORD bytes_per_sample = AUDIO_BITS_PER_SAMPLE / 8;
+        DWORD total_samples_in_buffer_now = waveHdr.dwBytesRecorded / bytes_per_sample;
+        short* live_samples_ptr = (short*)pWaveBuffer;
+
         if (total_samples_in_buffer_now >= RMS_ANALYSIS_WINDOW_SAMPLES) {
             const short* current_analysis_samples = live_samples_ptr + (total_samples_in_buffer_now - RMS_ANALYSIS_WINDOW_SAMPLES);
-            float current_rms = calculate_rms(current_analysis_samples, RMS_ANALYSIS_WINDOW_SAMPLES);
-            printf("[DEBUG][Update] Current RMS: %.2f, BG RMS: %.2f, Threshold: %.2f, AbsoluteMin: %.2f\n",
-                current_rms, current_background_rms, current_background_rms * SINGING_RMS_THRESHOLD_MULTIPLIER, MIN_ABSOLUTE_RMS_FOR_SINGING);
-
-            if (current_rms > current_background_rms * SINGING_RMS_THRESHOLD_MULTIPLIER &&
-                current_rms > MIN_ABSOLUTE_RMS_FOR_SINGING) {
+            float current_rms_val = calculate_rms(current_analysis_samples, RMS_ANALYSIS_WINDOW_SAMPLES); // 避免與全域變數重名
+            if (current_rms_val > current_background_rms * SINGING_RMS_THRESHOLD_MULTIPLIER &&
+                current_rms_val > MIN_ABSOLUTE_RMS_FOR_SINGING) {
                 if (!current_volume_is_loud_enough)
-                    printf("[DEBUG][Update] Volume just became loud enough!\n");
+                    printf("[DEBUG][UpdateSinging] 音量剛好足夠!\n");
                 current_volume_is_loud_enough = true;
             } else {
                 if (current_volume_is_loud_enough)
-                    printf("[DEBUG][Update] Volume just dropped below threshold.\n");
+                    printf("[DEBUG][UpdateSinging] 音量剛降到閾值以下。\n");
                 current_volume_is_loud_enough = false;
             }
         } else {
             current_volume_is_loud_enough = false;
         }
 
-        // --- Update actual_singing_start_time and current_actual_singing_end_time ---
         if (current_volume_is_loud_enough) {
-            if (!internal_was_loud_last_frame) { // Rising edge: sound just became loud
-                printf("[DEBUG][Update] Loud streak started at %.2f\n", current_time_for_update);
+            if (!internal_was_loud_last_frame) {
                 internal_current_loud_streak_began_at_time = current_time_for_update;
             }
             double current_loud_duration = current_time_for_update - internal_current_loud_streak_began_at_time;
-
             if (current_loud_duration >= SINGING_DETECTION_MIN_STREAK_DURATION) {
                 if (actual_singing_start_time < 0.0) {
-                    printf("[DEBUG][Update] actual_singing_start_time set to %.2f\n", internal_current_loud_streak_began_at_time);
                     actual_singing_start_time = internal_current_loud_streak_began_at_time;
                 }
                 current_actual_singing_end_time = current_time_for_update;
-                printf("[DEBUG][Update] current_actual_singing_end_time updated to %.2f\n", current_actual_singing_end_time);
             }
             internal_was_loud_last_frame = true;
         } else {
-            if (internal_was_loud_last_frame)
-                printf("[DEBUG][Update] Loud streak ended at %.2f\n", current_time_for_update);
             internal_was_loud_last_frame = false;
         }
 
-        // --- Check for lockable success ---
         if (!has_achieved_lockable_success) {
             if (actual_singing_start_time > 0.0 && current_actual_singing_end_time > 0.0) {
                 double current_singing_span = current_actual_singing_end_time - actual_singing_start_time;
                 if (current_singing_span > SINGING_TOTAL_TIME_THRESHOLD) {
                     has_achieved_lockable_success = true;
                     locked_successful_singing_end_time = current_actual_singing_end_time;
-                    printf("[DEBUG][Update] Core singing requirements MET and LOCKED at %.2fs (Singing span: %.2fs)\n",
+                    printf("[DEBUG][UpdateSinging] 核心歌唱需求已滿足並於 %.2fs 鎖定 (歌唱時長: %.2fs)\n",
                         locked_successful_singing_end_time, current_singing_span);
                 }
             }
         }
-    } else {
-        printf("[DEBUG][Update] Not recording or not singing. is_singing=%d, isActuallyRecording=%d, hWaveIn=%p, pWaveBuffer=%p\n",
-            is_singing, isActuallyRecording, hWaveIn, pWaveBuffer);
+    } else if (!is_in_countdown_animation) {
         current_volume_is_loud_enough = false;
     }
 }
 
-
 static void prepare_audio_recording(void) {
-    // Same as before
-    if (pWaveBuffer == NULL) { pWaveBuffer = (char*)malloc(AUDIO_BUFFER_SIZE); if (pWaveBuffer == NULL) { fprintf(stderr, "Fatal Error: Failed to allocate audio buffer.\n"); if (hWaveIn != NULL) { waveInClose(hWaveIn); hWaveIn = NULL; } return; } }
-    WAVEFORMATEX wfx; wfx.wFormatTag = WAVE_FORMAT_PCM; wfx.nChannels = AUDIO_CHANNELS; wfx.nSamplesPerSec = AUDIO_SAMPLE_RATE; wfx.nAvgBytesPerSec = AUDIO_SAMPLE_RATE * AUDIO_CHANNELS * (AUDIO_BITS_PER_SAMPLE / 8); wfx.nBlockAlign = AUDIO_CHANNELS * (AUDIO_BITS_PER_SAMPLE / 8); wfx.wBitsPerSample = AUDIO_BITS_PER_SAMPLE; wfx.cbSize = 0;
-    MMRESULT result = waveInOpen(&hWaveIn, WAVE_MAPPER, &wfx, 0, 0, CALLBACK_NULL);
-    if (result != MMSYSERR_NOERROR) { char error_text[256]; waveInGetErrorTextA(result, error_text, sizeof(error_text)); fprintf(stderr, "Error: Could not open audio recording device (Error %u: %s).\nPlease ensure a microphone is connected and enabled.\n", result, error_text); if (pWaveBuffer) { free(pWaveBuffer); pWaveBuffer = NULL; } hWaveIn = NULL; return; }
-    printf("DEBUG: Windows Audio recording prepared. Device opened.\n");
-}
-
-static void start_actual_audio_recording(void) {
-    // Same as before, with new variable resets
-    if (hWaveIn == NULL) {
-        prepare_audio_recording();
-        if (hWaveIn == NULL) {
-            fprintf(stderr, "Audio system not ready. Cannot start recording.\n");
-            is_singing = false;
-            isActuallyRecording = false;
+    if (pWaveBuffer == NULL) {
+        pWaveBuffer = (char*)malloc(AUDIO_BUFFER_SIZE);
+        if (pWaveBuffer == NULL) {
+            fprintf(stderr, "嚴重錯誤：無法分配音訊緩衝區。\n");
+            if (hWaveIn != NULL) { waveInClose(hWaveIn); hWaveIn = NULL; }
             return;
         }
     }
+    WAVEFORMATEX wfx;
+    wfx.wFormatTag = WAVE_FORMAT_PCM; wfx.nChannels = AUDIO_CHANNELS; wfx.nSamplesPerSec = AUDIO_SAMPLE_RATE;
+    wfx.nAvgBytesPerSec = AUDIO_SAMPLE_RATE * AUDIO_CHANNELS * (AUDIO_BITS_PER_SAMPLE / 8);
+    wfx.nBlockAlign = AUDIO_CHANNELS * (AUDIO_BITS_PER_SAMPLE / 8); wfx.wBitsPerSample = AUDIO_BITS_PER_SAMPLE; wfx.cbSize = 0;
+    MMRESULT result = waveInOpen(&hWaveIn, WAVE_MAPPER, &wfx, 0, 0, CALLBACK_NULL);
+    if (result != MMSYSERR_NOERROR) {
+        char error_text[256]; waveInGetErrorTextA(result, error_text, sizeof(error_text));
+        fprintf(stderr, "錯誤：無法開啟音訊錄製裝置 (錯誤 %u: %s)。\n請確認麥克風已連接並啟用。\n", result, error_text);
+        if (pWaveBuffer) { free(pWaveBuffer); pWaveBuffer = NULL; }
+        hWaveIn = NULL; return;
+    }
+    printf("DEBUG: Windows 音訊錄製已準備。裝置已開啟。\n");
+}
 
-    // If a previous recording was prematurely stopped (e.g. restart), ensure header is clean
-    if (waveHdr.dwFlags & WHDR_PREPARED) {
+static void start_actual_audio_recording(void) {
+    if (hWaveIn == NULL) {
+        prepare_audio_recording();
+        if (hWaveIn == NULL) {
+            fprintf(stderr, "音訊系統未就緒。無法開始錄製。\n");
+            is_singing = false; is_in_countdown_animation = false; isActuallyRecording = false;
+            return;
+        }
+    }
+    if (waveHdr.dwFlags & WHDR_PREPARED) { // 如果標頭已準備，先取消準備
         waveInUnprepareHeader(hWaveIn, &waveHdr, sizeof(WAVEHDR));
     }
-
-    ZeroMemory(&waveHdr, sizeof(WAVEHDR));
-    waveHdr.lpData = pWaveBuffer;
-    waveHdr.dwBufferLength = AUDIO_BUFFER_SIZE;
-    waveHdr.dwFlags = 0;
-
-    ZeroMemory(pWaveBuffer, AUDIO_BUFFER_SIZE); // Clear buffer for new recording
-
+    ZeroMemory(&waveHdr, sizeof(WAVEHDR)); waveHdr.lpData = pWaveBuffer;
+    waveHdr.dwBufferLength = AUDIO_BUFFER_SIZE; waveHdr.dwFlags = 0;
+    ZeroMemory(pWaveBuffer, AUDIO_BUFFER_SIZE); // 清空緩衝區
     MMRESULT prep_res = waveInPrepareHeader(hWaveIn, &waveHdr, sizeof(WAVEHDR));
-    if (prep_res != MMSYSERR_NOERROR) { fprintf(stderr, "Error preparing wave header: %u\n", prep_res); is_singing = false; isActuallyRecording = false; return; }
+    if (prep_res != MMSYSERR_NOERROR) { fprintf(stderr, "準備 wave 標頭錯誤: %u\n", prep_res); is_singing = false; is_in_countdown_animation = false; isActuallyRecording = false; return; }
     MMRESULT add_res = waveInAddBuffer(hWaveIn, &waveHdr, sizeof(WAVEHDR));
-    if (add_res != MMSYSERR_NOERROR) { fprintf(stderr, "Error adding wave buffer: %u\n", add_res); waveInUnprepareHeader(hWaveIn, &waveHdr, sizeof(WAVEHDR)); is_singing = false; isActuallyRecording = false; return; }
+    if (add_res != MMSYSERR_NOERROR) { fprintf(stderr, "新增 wave 緩衝區錯誤: %u\n", add_res); waveInUnprepareHeader(hWaveIn, &waveHdr, sizeof(WAVEHDR)); is_singing = false; is_in_countdown_animation = false; isActuallyRecording = false; return; }
     MMRESULT start_res = waveInStart(hWaveIn);
-    if (start_res != MMSYSERR_NOERROR) { fprintf(stderr, "Error starting wave input: %u\n", start_res); waveInUnprepareHeader(hWaveIn, &waveHdr, sizeof(WAVEHDR)); is_singing = false; isActuallyRecording = false; return; }
-
+    if (start_res != MMSYSERR_NOERROR) { fprintf(stderr, "開始 wave 輸入錯誤: %u\n", start_res); waveInUnprepareHeader(hWaveIn, &waveHdr, sizeof(WAVEHDR)); is_singing = false; is_in_countdown_animation = false; isActuallyRecording = false; return; }
     isActuallyRecording = true;
-    allegro_recording_start_time = al_get_time(); // This is the button press time
-    time_start_button_press = allegro_recording_start_time; // Store it explicitly
-
-    // Reset other timing variables for the new recording session
-    time_end_button_press = 0.0; // Will be set when stop_actual_audio_recording is called
-    actual_singing_start_time = -1.0;
-    current_actual_singing_end_time = -1.0;
-    locked_successful_singing_end_time = -1.0;
-    has_achieved_lockable_success = false; // Crucial reset
-    internal_was_loud_last_frame = false;
-    internal_current_loud_streak_began_at_time = 0.0;
-
-    displayPleaseSingMessage = false;
-    overall_button_to_button_duration = 0.0f; // Reset duration
-
-    current_recording_elapsed_time_sec = 0.0f;
-    current_volume_is_loud_enough = false;
-    current_background_rms = INITIAL_BACKGROUND_RMS_GUESS; // Reset background estimate
-
-    printf("[DEBUG][Audio] start_actual_audio_recording() called. hWaveIn=%p\n", hWaveIn);
-    printf("[DEBUG][Audio] isActuallyRecording=%d, allegro_recording_start_time=%.2f, time_start_button_press=%.2f\n",
-        isActuallyRecording, allegro_recording_start_time, time_start_button_press);
+    printf("[DEBUG][Audio] start_actual_audio_recording() 已呼叫。hWaveIn=%p\n", hWaveIn);
+    printf("[DEBUG][Audio] isActuallyRecording=%d。等待倒數計時完成以設定歌唱開始時間。\n", isActuallyRecording);
 }
 
 static bool stop_actual_audio_recording(void) {
     if (!isActuallyRecording || hWaveIn == NULL) {
-        printf("[DEBUG][Audio] stop_actual_audio_recording() called but not recording. isActuallyRecording=%d, hWaveIn=%p\n", isActuallyRecording, hWaveIn);
-        isActuallyRecording = false;
+        printf("[DEBUG][Audio] stop_actual_audio_recording() 被呼叫但未在錄製。isActuallyRecording=%d, hWaveIn=%p\n", isActuallyRecording, hWaveIn);
+        isActuallyRecording = false; is_singing = false; is_in_countdown_animation = false;
         return false;
     }
-
     double current_stop_time = al_get_time();
-    time_end_button_press = current_stop_time; // Set this first
+    time_end_button_press = current_stop_time;
     overall_button_to_button_duration = (float)(time_end_button_press - time_start_button_press);
-
-    MMRESULT reset_res = waveInReset(hWaveIn); // Stop data flow into the buffer
-    if (reset_res != MMSYSERR_NOERROR) {
-        fprintf(stderr, "Error resetting wave input: %u\n", reset_res);
-    }
-    // waveHdr.dwBytesRecorded should now be stable for analysis
-    isActuallyRecording = false; // Set this after stopping and before extensive processing
-
-    printf("DEBUG: Windows Recording stopped at %.2f. Total button-to-button duration: %.2f seconds.\n", time_end_button_press, overall_button_to_button_duration);
-    printf("DEBUG: Bytes recorded: %lu. ActualSingStart: %.2f, CurrentActualSingEnd (at stop): %.2f, LockedEnd: %.2f, LockAchieved: %s\n",
+    MMRESULT reset_res = waveInReset(hWaveIn); // 停止資料流入
+    if (reset_res != MMSYSERR_NOERROR) { fprintf(stderr, "重置 wave 輸入錯誤: %u\n", reset_res); }
+    isActuallyRecording = false; // 設定為未在錄製
+    printf("DEBUG: Windows 錄製停止於 %.2f。總按鈕間時長 (倒數後): %.2f 秒。\n", time_end_button_press, overall_button_to_button_duration);
+    printf("DEBUG: 錄製位元組: %lu。實際歌唱開始: %.2f, 目前實際歌唱結束 (停止時): %.2f, 鎖定結束: %.2f, 是否鎖定: %s\n",
            waveHdr.dwBytesRecorded, actual_singing_start_time, current_actual_singing_end_time,
-           locked_successful_singing_end_time, has_achieved_lockable_success ? "Yes" : "No");
-
+           locked_successful_singing_end_time, has_achieved_lockable_success ? "是" : "否");
     bool validationSuccess = true;
     displayPleaseSingMessage = false;
-
-    if (force_audio_too_short_for_test) { // For testing
-        overall_button_to_button_duration = 0.5f; // Simulate short recording
-        printf("DEBUG: FORCED BUTTON-TO-BUTTON DURATION TOO SHORT (%.2f sec).\n", overall_button_to_button_duration);
+    if (force_audio_too_short_for_test) {
+        overall_button_to_button_duration = 0.5f;
+        printf("DEBUG: 強制按鈕間時長過短 (%.2f 秒)。\n", overall_button_to_button_duration);
     }
-
-    // --- VALIDATION LOGIC ---
-
-    // Condition 1: 按鈕間時間 (Button-to-button duration)
     if (overall_button_to_button_duration < MIN_RECORDING_DURATION_SECONDS) {
-        printf("DEBUG FAIL: Button-to-button duration (%.2fs) < min required (%.1fs).\n", overall_button_to_button_duration, MIN_RECORDING_DURATION_SECONDS);
+        printf("DEBUG 失敗: 按鈕間時長 (%.2fs) < 最低要求 (%.1fs)。\n", overall_button_to_button_duration, MIN_RECORDING_DURATION_SECONDS);
         validationSuccess = false;
     }
-
-    // Analyze recorded audio for total_time_above_rms_threshold (needed for proportion if not locked)
     short* samples = (short*)pWaveBuffer;
     DWORD num_samples_actually_recorded = waveHdr.dwBytesRecorded / (AUDIO_BITS_PER_SAMPLE / 8);
     float total_time_above_rms_threshold = 0.0f;
-
-    if (validationSuccess && num_samples_actually_recorded == 0) { // Check only if not already failed
-        printf("DEBUG FAIL: No audio data recorded (dwBytesRecorded is 0 after stop).\n");
+    if (validationSuccess && num_samples_actually_recorded == 0) {
+        printf("DEBUG 失敗: 未錄製到音訊資料 (停止後 dwBytesRecorded 為 0)。\n");
         validationSuccess = false;
-    } else if (num_samples_actually_recorded > 0) { // Only analyze if there's data
+    } else if (num_samples_actually_recorded > 0) { // 僅在有資料時分析
         long loud_frame_count = 0;
-        float persistent_background_rms = INITIAL_BACKGROUND_RMS_GUESS; // Re-estimate for the whole recording
+        float persistent_background_rms_for_validation = current_background_rms; // 使用已鎖定的背景RMS
         const int frame_size = RMS_ANALYSIS_WINDOW_SAMPLES;
-
         for (DWORD frame_start_sample = 0; (frame_start_sample + frame_size) <= num_samples_actually_recorded; frame_start_sample += frame_size) {
             const short* current_frame_samples = samples + frame_start_sample;
-            float frame_rms = calculate_rms(current_frame_samples, frame_size);
-
-            if (frame_rms < persistent_background_rms * 1.2f && frame_rms < MIN_ABSOLUTE_RMS_FOR_SINGING * 1.5f) {
-                 persistent_background_rms = (persistent_background_rms * 0.95f) + (frame_rms * 0.05f);
-                 if(persistent_background_rms < 50) persistent_background_rms = 50;
-            }
-            if (frame_rms > persistent_background_rms * SINGING_RMS_THRESHOLD_MULTIPLIER &&
-                frame_rms > MIN_ABSOLUTE_RMS_FOR_SINGING) {
+            float frame_rms_val = calculate_rms(current_frame_samples, frame_size);
+            if (frame_rms_val > persistent_background_rms_for_validation * SINGING_RMS_THRESHOLD_MULTIPLIER &&
+                frame_rms_val > MIN_ABSOLUTE_RMS_FOR_SINGING) {
                 loud_frame_count++;
             }
         }
         total_time_above_rms_threshold = (float)loud_frame_count * frame_size / AUDIO_SAMPLE_RATE;
-        printf("DEBUG: [Validation] Full recording - Est. BG RMS: %.1f. Loud frames: %ld. Total time loud: %.2f s\n",
-               persistent_background_rms, loud_frame_count, total_time_above_rms_threshold);
+        printf("DEBUG: [驗證] 完整錄製 - 使用鎖定背景 RMS: %.1f。大聲幀數: %ld。總大聲時間: %.2f 秒\n",
+               persistent_background_rms_for_validation, loud_frame_count, total_time_above_rms_threshold);
     }
-
-
-    // Condition 2: Core singing requirements (唱歌總時間 & potentially proportion)
-    if (validationSuccess) { // Only proceed if Condition 1 (button duration) passed & data exists
+    if (validationSuccess) {
         if (has_achieved_lockable_success) {
-            // Player met "唱歌總時間 > 20s" requirement DURING recording.
-            // Use the locked_successful_singing_end_time. Proportion check is WAIVED.
             double locked_singing_duration = 0.0;
             if (actual_singing_start_time > 0.0 && locked_successful_singing_end_time > 0.0 && locked_successful_singing_end_time > actual_singing_start_time) {
                 locked_singing_duration = locked_successful_singing_end_time - actual_singing_start_time;
             }
-
-            // The primary check for lockable success was already "> SINGING_TOTAL_TIME_THRESHOLD" in update.
-            // Here, we just confirm it's still valid (it should be).
             if (locked_singing_duration <= SINGING_TOTAL_TIME_THRESHOLD) {
-                // This would indicate a logic error if has_achieved_lockable_success is true
-                // but the duration isn't met.
-                printf("DEBUG FAIL (Locked Path Error): Locked singing duration (%.2fs) unexpectedly <= threshold (%.1fs).\n", locked_singing_duration, SINGING_TOTAL_TIME_THRESHOLD);
+                printf("DEBUG 失敗 (鎖定路徑錯誤): 鎖定歌唱時長 (%.2fs) 未預期地 <= 閾值 (%.1fs)。\n", locked_singing_duration, SINGING_TOTAL_TIME_THRESHOLD);
                 validationSuccess = false;
             } else {
-                printf("DEBUG PASS (Locked Path): Core singing requirements met via lock. Locked singing duration: %.2fs. Proportion check waived.\n", locked_singing_duration);
-                // validationSuccess remains true
+                printf("DEBUG 通過 (鎖定路徑): 核心歌唱需求透過鎖定滿足。鎖定歌唱時長: %.2fs。豁免比例檢查。\n", locked_singing_duration);
             }
-        } else {
-            // Lock was NOT achieved. Apply standard checks for 唱歌總時間 and 比例.
+        } else { // 未鎖定
             double final_actual_singing_duration = 0.0;
-            // Use current_actual_singing_end_time, which was the value at the moment of stopping recording.
             if (actual_singing_start_time > 0.0 && current_actual_singing_end_time > 0.0 && current_actual_singing_end_time > actual_singing_start_time) {
                 final_actual_singing_duration = current_actual_singing_end_time - actual_singing_start_time;
             }
-
-            // Check 2a: 唱歌總時間 (actual_end - actual_start)
             if (final_actual_singing_duration <= SINGING_TOTAL_TIME_THRESHOLD) {
-                printf("DEBUG FAIL (Not Locked): Actual singing duration (%.2fs) <= threshold (%.1fs).\n", final_actual_singing_duration, SINGING_TOTAL_TIME_THRESHOLD);
+                printf("DEBUG 失敗 (未鎖定): 實際歌唱時長 (%.2fs) <= 閾值 (%.1fs)。\n", final_actual_singing_duration, SINGING_TOTAL_TIME_THRESHOLD);
                 validationSuccess = false;
             }
-
-            // Check 2b: 比例 (Proportion of loud time vs button-to-button time)
-            // This check is only performed if previous checks (including 2a for non-locked) passed.
-            if (validationSuccess) { // If still valid after 2a
-                if (overall_button_to_button_duration > 0) { // Avoid division by zero
+            if (validationSuccess) { // 如果在 2a 後仍然有效
+                if (overall_button_to_button_duration > 0) {
                     float singing_proportion = total_time_above_rms_threshold / overall_button_to_button_duration;
                     if (singing_proportion < REQUIRED_SINGING_PROPORTION) {
-                        printf("DEBUG FAIL (Not Locked): Singing proportion (%.2f / %.2f = %.3f) < required (%.3f).\n",
+                        printf("DEBUG 失敗 (未鎖定): 歌唱比例 (%.2f / %.2f = %.3f) < 要求 (%.3f)。\n",
                                total_time_above_rms_threshold, overall_button_to_button_duration, singing_proportion, REQUIRED_SINGING_PROPORTION);
                         validationSuccess = false;
                     }
                 } else if (total_time_above_rms_threshold > 0) {
-                     printf("DEBUG FAIL (Not Locked): Button duration is 0 but loud time > 0. Invalid state.\n");
+                     printf("DEBUG 失敗 (未鎖定): 按鈕時長為 0 但大聲時間 > 0。無效狀態。\n");
                      validationSuccess = false;
-                } else { // Both overall_button_to_button_duration and total_time_above_rms_threshold are 0 (or overall is <=0)
-                    // If MIN_RECORDING_DURATION_SECONDS was > 0, it would have failed earlier.
-                    // If MIN_RECORDING_DURATION_SECONDS is 0, and proportion is required, this must fail.
-                    if (REQUIRED_SINGING_PROPORTION > 0.0f) {
-                        printf("DEBUG FAIL (Not Locked): Zero button duration and/or zero loud time, proportion fails if required.\n");
+                } else {
+                    if (REQUIRED_SINGING_PROPORTION > 0.0f) { // 如果要求比例，但時長和聲音都為0
+                        printf("DEBUG 失敗 (未鎖定): 按鈕時長和/或大聲時間為零，若需要比例則失敗。\n");
                         validationSuccess = false;
                     }
                 }
             }
-
             if (validationSuccess && !has_achieved_lockable_success) {
-                 printf("DEBUG PASS (Not Locked): All standard requirements met.\n");
+                 printf("DEBUG 通過 (未鎖定): 所有標準需求均已滿足。\n");
             }
         }
     }
-
-
     if (!validationSuccess) {
         displayPleaseSingMessage = true;
-        printf("DEBUG: Overall Audio validation FAILED.\n");
+        printf("DEBUG: 整體音訊驗證失敗。\n");
     } else {
-        printf("DEBUG: Overall Audio validation SUCCEEDED.\n");
-        displayPleaseSingMessage = false; // Ensure message is cleared on success
+        printf("DEBUG: 整體音訊驗證成功。\n");
+        displayPleaseSingMessage = false;
     }
-
-    // Unprepare header must be done AFTER all data from pWaveBuffer is used.
-    if (waveHdr.dwFlags & WHDR_PREPARED) {
+    if (waveHdr.dwFlags & WHDR_PREPARED) { // 確保取消準備標頭
         MMRESULT unprep_res = waveInUnprepareHeader(hWaveIn, &waveHdr, sizeof(WAVEHDR));
-        if (unprep_res != MMSYSERR_NOERROR && unprep_res != WAVERR_UNPREPARED) { // WAVERR_UNPREPARED is ok if already unprepared
-             fprintf(stderr, "Error unpreparing wave header: %u\n", unprep_res);
+        if (unprep_res != MMSYSERR_NOERROR && unprep_res != WAVERR_UNPREPARED) {
+             fprintf(stderr, "取消準備 wave 標頭錯誤: %u\n", unprep_res);
         }
     }
-    // waveHdr.dwFlags should now not have WHDR_PREPARED
-    // Reset waveHdr.dwBytesRecorded for safety, though it will be zeroed on next prep.
-    // waveHdr.dwBytesRecorded = 0;
-
-
     return validationSuccess;
 }
 
-
 static void cleanup_audio_recording(void) {
-    // Same as before
-    printf("DEBUG: Windows cleanup_audio_recording() called.\n");
-    if (isActuallyRecording && hWaveIn != NULL) { // Should not happen if logic is correct, stop_actual_audio_recording should set isActuallyRecording to false
-        waveInReset(hWaveIn);
+    printf("DEBUG: Windows cleanup_audio_recording() 已呼叫。\n");
+    if (isActuallyRecording && hWaveIn != NULL) {
+        waveInReset(hWaveIn); // 停止任何正在進行的錄製
         isActuallyRecording = false;
     }
     if (hWaveIn != NULL) {
-        // It's possible waveHdr was prepared but not added/started if an error occurred mid-prepare.
-        // Or if stop_actual_audio_recording didn't complete unprepare.
-        if (waveHdr.dwFlags & WHDR_PREPARED) {
+        if (waveHdr.dwFlags & WHDR_PREPARED) { // 確保標頭已取消準備
             MMRESULT res_unprep = waveInUnprepareHeader(hWaveIn, &waveHdr, sizeof(WAVEHDR));
             if (res_unprep != MMSYSERR_NOERROR && res_unprep != WAVERR_UNPREPARED) {
-                fprintf(stderr, "Error unpreparing wave header during cleanup: %u\n", res_unprep);
+                fprintf(stderr, "清理期間取消準備 wave 標頭錯誤: %u\n", res_unprep);
             }
         }
-        MMRESULT close_res = waveInClose(hWaveIn);
+        MMRESULT close_res = waveInClose(hWaveIn); // 關閉裝置
         if (close_res != MMSYSERR_NOERROR) {
-            // Common error is STILL_PLAYING if waveInReset wasn't effective or called.
-            // Or if another thread is somehow accessing it (not the case here).
-            fprintf(stderr, "Error closing wave input device: %u\n", close_res);
+            fprintf(stderr, "關閉 wave 輸入裝置錯誤: %u\n", close_res);
         }
         hWaveIn = NULL;
     }
@@ -806,6 +803,12 @@ static void cleanup_audio_recording(void) {
         free(pWaveBuffer);
         pWaveBuffer = NULL;
     }
-    // Explicitly clear waveHdr structure after freeing its buffer and closing device
-    ZeroMemory(&waveHdr, sizeof(WAVEHDR));
+    ZeroMemory(&waveHdr, sizeof(WAVEHDR)); // 清空標頭結構
+
+    // 清理 large_font (如果已載入)
+    if (large_font) {
+        printf("DEBUG: 正在銷毀 large_font。\n");
+        al_destroy_font(large_font);
+        large_font = NULL;
+    }
 }

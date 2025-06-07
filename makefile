@@ -1,8 +1,9 @@
 OUT := game
 CC := gcc
 
-CXXFLAGS := -Wall -std=c11 -O2
-SOURCE := $(wildcard *.c */*.c)
+CXXFLAGS := -Wall -std=c11 -O2 -Iinclude
+SOURCE := $(wildcard *.c */*.c */*/*.c)
+
 # SOURCE := $(filter-out tutorial, $(SOURCE))
 OBJ := $(patsubst %.c, %.o, $(notdir $(SOURCE)))
 RM_OBJ := 
@@ -12,7 +13,7 @@ ifeq ($(OS), Windows_NT) # Windows OS
 	ALLEGRO_PATH := ../allegro
 	export Path := ../MinGW/bin;$(Path)
 
-	ALLEGRO_FLAGS_RELEASE := -I$(ALLEGRO_PATH)/include -L$(ALLEGRO_PATH)/lib -lallegro_monolith -lwinmm
+	ALLEGRO_FLAGS_RELEASE := -I$(ALLEGRO_PATH)/include -L$(ALLEGRO_PATH)/lib/liballegro_monolith.dll.a -lwinmm
 	ALLEGRO_DLL_PATH_RELEASE := $(ALLEGRO_PATH)/lib/liballegro_monolith.dll.a
 	ALLEGRO_FLAGS_DEBUG := -I$(ALLEGRO_PATH)/include -L$(ALLEGRO_PATH)/lib/liballegro_monolith-debug.dll.a -lwinmm
 	ALLEGRO_DLL_PATH_DEBUG := $(ALLEGRO_PATH)/lib/liballegro_monolith-debug.dll.a

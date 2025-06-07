@@ -888,13 +888,26 @@ static void prepare_audio_recording(void) {
             if (pAudioBuffers[i]) { free(pAudioBuffers[i]); pAudioBuffers[i] = NULL; }
         }
         if (waveform_buffer) { free(waveform_buffer); waveform_buffer = NULL; }
-        hWaveIn = NULL;
-        return;
+        hWaveIn = NULL; // Ensure hWaveIn is NULL
+        audio_device_error_occurred = true; // <<< ADD THIS LINE
+        return; // Return early as hWaveIn is NULL
     }
     printf("DEBUG: Windows 音訊錄製已準備。裝置已開啟 (使用回呼)。hWaveIn = %p\n", hWaveIn);
 }
 
 static void CALLBACK waveInProc(HWAVEIN hwi, UINT uMsg, DWORD_PTR dwInstance, DWORD_PTR dwParam1, DWORD_PTR dwParam2) {
+    // waveInProc: Entry point log
+    // printf("waveInProc: uMsg=%u, dwInstance=%p, dwParam1=%p, dwParam2=%p, global hWaveIn=%p, isActuallyRecording=%s\n", uMsg, dwInstance, dwParam1, dwParam2, hWaveIn, isActuallyRecording ? "true" : "false");
+
+    if (hWaveIn == NULL || !isActuallyRecording) {
+        // If recording is globally stopped/cleaned up or an error has been flagged that stops recording,
+        // this callback might still be invoked for pending buffers. Don't process further.
+        // Log this occurrence, especially if uMsg is WIM_DATA, as it might indicate late buffers.
+        if (uMsg == WIM_DATA) {
+            fprintf(stderr, "waveInProc: WIM_DATA received but hWaveIn is NULL or isActuallyRecording is false. global hWaveIn=%p, isActuallyRecording=%s. Suppressing further processing.\n", hWaveIn, isActuallyRecording ? "true" : "false");
+        }
+        return;
+    }
     switch (uMsg) {
         case WIM_OPEN:
             // printf("DEBUG: waveInProc - WIM_OPEN received. hWaveIn = %p\n", hwi);
@@ -940,18 +953,21 @@ static void CALLBACK waveInProc(HWAVEIN hwi, UINT uMsg, DWORD_PTR dwInstance, DW
             }
 
             // Re-add the buffer to the input queue if still recording
-            if (isActuallyRecording && hWaveIn != NULL) {
-                // It's important that pDoneHeader is one of our waveHdrs.
-                // If filled_buffer_idx was -1, re-adding pDoneHeader might be problematic,
-                // but waveInAddBuffer expects the same header that was returned.
+            // The primary gate here is isActuallyRecording, hWaveIn != NULL is checked at function entry.
+            if (isActuallyRecording) {
                 MMRESULT add_res = waveInAddBuffer(hwi, pDoneHeader, sizeof(WAVEHDR));
                 if (add_res != MMSYSERR_NOERROR) {
                     char error_text[256];
                     waveInGetErrorTextA(add_res, error_text, sizeof(error_text));
                     fprintf(stderr, "waveInProc: waveInAddBuffer error %u: %s. Header Addr: %p\n", add_res, error_text, pDoneHeader);
-                    isActuallyRecording = false; // Critical error, stop recording
+                    // Critical error, stop recording from main thread's perspective by setting the flag.
+                    // The main thread will handle actual cleanup.
                     audio_device_error_occurred = true;
+                    isActuallyRecording = false; // Also set this to prevent further attempts from other callbacks
                 }
+            } else {
+                 // Log if we reach here and isActuallyRecording is false, indicating buffers still coming after stop.
+                 fprintf(stderr, "waveInProc: WIM_DATA for buffer %p, but isActuallyRecording is false. Not re-adding buffer.\n", pDoneHeader);
             }
             break;
         }
@@ -966,176 +982,223 @@ static void CALLBACK waveInProc(HWAVEIN hwi, UINT uMsg, DWORD_PTR dwInstance, DW
 
 static void start_actual_audio_recording(void) {
     if (hWaveIn == NULL) {
-        printf("DEBUG: start_actual_audio_recording - hWaveIn is NULL, calling prepare_audio_recording.\n");
+        // This means prepare_audio_recording was called and failed, or was never called successfully
+        // prepare_audio_recording should have set audio_device_error_occurred if it failed.
+        fprintf(stderr, "start_actual_audio_recording: hWaveIn is NULL. Calling prepare_audio_recording.\n");
         prepare_audio_recording();
-        if (hWaveIn == NULL) {
-            fprintf(stderr, "音訊系統未就緒。無法開始錄製。\n");
-            is_singing = false;
+        if (hWaveIn == NULL) { // If still NULL after prepare attempt
+            fprintf(stderr, "start_actual_audio_recording: prepare_audio_recording failed. Audio system not ready.\n");
+            // audio_device_error_occurred should already be true from prepare_audio_recording
+            is_singing = false; // Ensure game state reflects this
             is_in_countdown_animation = false;
             isActuallyRecording = false;
             return;
         }
     }
 
-    // ---- NEW ----
-    // Initialize the array for storing recorded bytes for each buffer
-    memset(g_last_recorded_bytes, 0, sizeof(g_last_recorded_bytes));
-    // ---- END NEW ----
-
-    isActuallyRecording = true;
+    // Reset states
+    isActuallyRecording = true; // Tentatively true, errors below can set it false
     current_buffer_idx = 0;
-    processed_buffer_idx = -1; // No buffer processed yet
-    local_last_processed_idx = -1; // Main thread hasn't processed anything from this session yet
+    processed_buffer_idx = -1;
+    local_last_processed_idx = -1;
     waveform_buffer_write_pos = 0;
     if(waveform_buffer && waveform_buffer_size_samples > 0) {
       ZeroMemory(waveform_buffer, waveform_buffer_size_samples * sizeof(short));
     }
+    memset(g_last_recorded_bytes, 0, sizeof(g_last_recorded_bytes));
 
 
+    // Prepare and Add Buffers
     for (int i = 0; i < NUM_AUDIO_BUFFERS; ++i) {
+        // Unprepare if already prepared (existing logic)
         if (waveHdrs[i].dwFlags & WHDR_PREPARED) {
             MMRESULT unprep_res = waveInUnprepareHeader(hWaveIn, &waveHdrs[i], sizeof(WAVEHDR));
-            if (unprep_res != MMSYSERR_NOERROR && unprep_res != WAVERR_UNPREPARED) { // WAVERR_UNPREPARED is not an error here
+            if (unprep_res != MMSYSERR_NOERROR && unprep_res != WAVERR_UNPREPARED) {
                  char err_text[256]; waveInGetErrorTextA(unprep_res, err_text, 256);
-                fprintf(stderr, "start_actual_audio_recording: waveInUnprepareHeader error for buffer %d: %u (%s)\n", i, unprep_res, err_text);
+                fprintf(stderr, "start_actual_audio_recording: waveInUnprepareHeader (pre-loop) error for buffer %d: %u (%s)\n", i, unprep_res, err_text);
+                // Not setting audio_device_error_occurred here as this is cleanup of a prior state.
             }
         }
 
         ZeroMemory(&waveHdrs[i], sizeof(WAVEHDR));
-        waveHdrs[i].lpData = pAudioBuffers[i];
+        waveHdrs[i].lpData = pAudioBuffers[i]; // pAudioBuffers should be allocated in prepare_audio_recording
+        if (pAudioBuffers[i] == NULL) { // Safety check
+            fprintf(stderr, "start_actual_audio_recording: pAudioBuffers[%d] is NULL before waveInPrepareHeader.\n", i);
+            audio_device_error_occurred = true;
+            isActuallyRecording = false;
+            // Attempt to unprepare headers prepared so far
+            for (int j = 0; j < i; ++j) {
+                if (waveHdrs[j].dwFlags & WHDR_PREPARED) {
+                    waveInUnprepareHeader(hWaveIn, &waveHdrs[j], sizeof(WAVEHDR));
+                }
+            }
+            return;
+        }
         waveHdrs[i].dwBufferLength = SINGLE_BUFFER_SIZE;
-        waveHdrs[i].dwFlags = 0; // Clear flags
+        waveHdrs[i].dwFlags = 0;
 
         MMRESULT prep_res = waveInPrepareHeader(hWaveIn, &waveHdrs[i], sizeof(WAVEHDR));
         if (prep_res != MMSYSERR_NOERROR) {
             char err_text[256]; waveInGetErrorTextA(prep_res, err_text, 256);
-            fprintf(stderr, "準備 wave 標頭 %d 錯誤: %u (%s)\n", i, prep_res, err_text);
+            fprintf(stderr, "start_actual_audio_recording: waveInPrepareHeader error for buffer %d: %u (%s)\n", i, prep_res, err_text);
+            audio_device_error_occurred = true;
             isActuallyRecording = false;
-            for (int j = 0; j < i; ++j) { // Unprepare those already prepared
-                if (waveHdrs[j].dwFlags & WHDR_PREPARED) waveInUnprepareHeader(hWaveIn, &waveHdrs[j], sizeof(WAVEHDR));
+            // Attempt to unprepare headers prepared so far in this call before returning
+            for (int j = 0; j < i; ++j) { // Only up to i-1
+                if (waveHdrs[j].dwFlags & WHDR_PREPARED) {
+                    waveInUnprepareHeader(hWaveIn, &waveHdrs[j], sizeof(WAVEHDR));
+                }
             }
-            return;
+            return; // Critical error, cannot proceed
         }
 
         MMRESULT add_res = waveInAddBuffer(hWaveIn, &waveHdrs[i], sizeof(WAVEHDR));
         if (add_res != MMSYSERR_NOERROR) {
             char err_text[256]; waveInGetErrorTextA(add_res, err_text, 256);
-            fprintf(stderr, "新增 wave 緩衝區 %d 錯誤: %u (%s)\n", i, add_res, err_text);
+            fprintf(stderr, "start_actual_audio_recording: waveInAddBuffer error for buffer %d: %u (%s)\n", i, add_res, err_text);
+            audio_device_error_occurred = true;
             isActuallyRecording = false;
-            for (int j = 0; j <= i; ++j) { // Unprepare all including current one if prepared
-                 if (waveHdrs[j].dwFlags & WHDR_PREPARED) waveInUnprepareHeader(hWaveIn, &waveHdrs[j], sizeof(WAVEHDR));
+            // Attempt to unprepare all headers prepared so far (including current one if prep_res was OK)
+            for (int j = 0; j <= i; ++j) {
+                if (waveHdrs[j].dwFlags & WHDR_PREPARED) {
+                    waveInUnprepareHeader(hWaveIn, &waveHdrs[j], sizeof(WAVEHDR));
+                }
             }
-            return;
+            return; // Critical error
         }
     }
 
     MMRESULT start_res = waveInStart(hWaveIn);
     if (start_res != MMSYSERR_NOERROR) {
         char err_text[256]; waveInGetErrorTextA(start_res, err_text, 256);
-        fprintf(stderr, "開始 wave 輸入錯誤: %u (%s)\n", start_res, err_text);
+        fprintf(stderr, "start_actual_audio_recording: waveInStart error: %u (%s)\n", start_res, err_text);
+        audio_device_error_occurred = true;
         isActuallyRecording = false;
-        for (int i = 0; i < NUM_AUDIO_BUFFERS; ++i) { // Unprepare all buffers
-            if (waveHdrs[i].dwFlags & WHDR_PREPARED) waveInUnprepareHeader(hWaveIn, &waveHdrs[i], sizeof(WAVEHDR));
+        // Attempt to unprepare all buffers as starting failed
+        for (int i = 0; i < NUM_AUDIO_BUFFERS; ++i) {
+            if (waveHdrs[i].dwFlags & WHDR_PREPARED) {
+                waveInUnprepareHeader(hWaveIn, &waveHdrs[i], sizeof(WAVEHDR));
+            }
         }
-        return;
+        return; // Critical error
     }
 
+    // If all successful:
     printf("[DEBUG][Audio] start_actual_audio_recording() SUCCEEDED. hWaveIn=%p\n", hWaveIn);
 }
 
 static bool stop_actual_audio_recording(void) {
-    if (!isActuallyRecording || hWaveIn == NULL) {
-        return false;
+    isActuallyRecording = false; // Set this first to signal waveInProc immediately
+
+    if (hWaveIn == NULL) { // If no device, nothing to stop
+        bool conditionA_total_duration = false;
+        double session_duration = 0.0;
+        if (t1_countdown_finish_time > 0 && t4_complete_button_press_time > t1_countdown_finish_time) {
+            session_duration = t4_complete_button_press_time - t1_countdown_finish_time;
+            conditionA_total_duration = (session_duration > MIN_TOTAL_SESSION_DURATION_FOR_GROWTH);
+        }
+        bool conditionB_singing_quality = singing_is_successful_realtime;
+        bool plant_should_grow = conditionA_total_duration && conditionB_singing_quality;
+        fprintf(stderr, "stop_actual_audio_recording: hWaveIn was NULL. No audio operations performed. Plant growth decision based on existing timers.\n");
+        return plant_should_grow;
     }
 
-    isActuallyRecording = false; // Signal waveInProc to stop adding buffers
+    // Proceed with stopping audio if hWaveIn is not NULL
+    MMRESULT stop_res = waveInStop(hWaveIn);
+    if (stop_res != MMSYSERR_NOERROR) {
+        char err_text[256];
+        waveInGetErrorTextA(stop_res, err_text, sizeof(err_text));
+        fprintf(stderr, "stop_actual_audio_recording: waveInStop error: %u (%s)\n", stop_res, err_text);
+        audio_device_error_occurred = true; // Flag the error
+    }
 
-    MMRESULT reset_res = waveInReset(hWaveIn); // Stop recording and return all buffers
+    MMRESULT reset_res = waveInReset(hWaveIn);
     if (reset_res != MMSYSERR_NOERROR) {
-        char err_text[256]; waveInGetErrorTextA(reset_res, err_text, 256);
-        fprintf(stderr, "重置 wave 輸入錯誤: %u (%s)\n", reset_res, err_text);
+        char err_text[256];
+        waveInGetErrorTextA(reset_res, err_text, sizeof(err_text));
+        fprintf(stderr, "stop_actual_audio_recording: waveInReset error: %u (%s)\n", reset_res, err_text);
+        audio_device_error_occurred = true; // Flag the error
     }
-    // After waveInReset, any pending buffers are returned to the application via WIM_DATA
-    // with the WHDR_DONE flag set and dwBytesRecorded updated.
-    // Our waveInProc will handle them and set g_last_recorded_bytes.
-    // The main loop in update_minigame1 should continue to process these final buffers.
 
-    // The cleanup of waveHdrs (unprepare) should ideally happen after all buffers are confirmed done.
-    // However, waveInClose will implicitly unprepare them if still prepared.
-    // For robustness, unprepare them here explicitly. This should be safe after waveInReset.
-    // It might be better to do this in cleanup_audio_recording or ensure all WIM_DATA have been processed.
-    // For now, let's keep unprepare here as it was.
+    // Unprepare headers (existing loop)
     for (int i = 0; i < NUM_AUDIO_BUFFERS; ++i) {
-        if (waveHdrs[i].dwFlags & WHDR_PREPARED) { // Check if it's still prepared
-            // It's possible that waveInReset already marked them as unprepared or returned them.
-            // It's safer to check WHDR_DONE before unpreparing, but waveInUnprepareHeader should handle it.
+        if (waveHdrs[i].dwFlags & WHDR_PREPARED) {
             MMRESULT unprep_res = waveInUnprepareHeader(hWaveIn, &waveHdrs[i], sizeof(WAVEHDR));
             if (unprep_res != MMSYSERR_NOERROR && unprep_res != WAVERR_UNPREPARED) {
                  char err_text[256]; waveInGetErrorTextA(unprep_res, err_text, 256);
-                 fprintf(stderr, "停止時取消準備 wave 標頭 %d (%p) 錯誤: %u (%s)\n", i, &waveHdrs[i], unprep_res, err_text);
+                 fprintf(stderr, "stop_actual_audio_recording: waveInUnprepareHeader error for buffer %d: %u (%s)\n", i, unprep_res, err_text);
+                 audio_device_error_occurred = true; // Flag the error
             }
         }
     }
-    // Note: Device (hWaveIn) is not closed here, it's closed in cleanup_audio_recording.
 
-    printf("DEBUG: Windows 錄製停止於 t4=%.2f.\n", t4_complete_button_press_time);
+    printf("DEBUG: Windows recording stopped at t4=%.2f.\n", t4_complete_button_press_time);
     printf("DEBUG: t1: %.2f, t2: %.2f, t_singing_loud_duration: %.2f\n",
            t1_countdown_finish_time, t2_singing_start_time, t_singing_loud_duration);
 
-    bool conditionA_total_duration = false;
-    double session_duration = 0.0;
-
+    bool conditionA_total_duration_final = false;
+    double session_duration_final = 0.0;
     if (t1_countdown_finish_time > 0 && t4_complete_button_press_time > t1_countdown_finish_time) {
-        session_duration = t4_complete_button_press_time - t1_countdown_finish_time;
-        conditionA_total_duration = (session_duration > MIN_TOTAL_SESSION_DURATION_FOR_GROWTH);
+        session_duration_final = t4_complete_button_press_time - t1_countdown_finish_time;
+        conditionA_total_duration_final = (session_duration_final > MIN_TOTAL_SESSION_DURATION_FOR_GROWTH);
     }
-
-    bool conditionB_singing_quality = singing_is_successful_realtime;
-    bool plant_should_grow = conditionA_total_duration && conditionB_singing_quality;
+    bool conditionB_singing_quality_final = singing_is_successful_realtime;
+    bool plant_should_grow_final = conditionA_total_duration_final && conditionB_singing_quality_final;
 
     printf("DEBUG stop_actual_audio_recording: t1=%.2f, t4=%.2f, SessionDuration=%.2f (Req: >%.1f) -> ConditionA: %s\n",
         t1_countdown_finish_time, t4_complete_button_press_time,
-        session_duration, MIN_TOTAL_SESSION_DURATION_FOR_GROWTH,
-        conditionA_total_duration ? "Met" : "Not Met");
+        session_duration_final, MIN_TOTAL_SESSION_DURATION_FOR_GROWTH,
+        conditionA_total_duration_final ? "Met" : "Not Met");
     printf("DEBUG stop_actual_audio_recording: singing_is_successful_realtime -> ConditionB: %s\n",
-        conditionB_singing_quality ? "Met" : "Not Met");
-    printf("DEBUG stop_actual_audio_recording: Final Plant should grow: %s\n", plant_should_grow ? "YES" : "NO");
+        conditionB_singing_quality_final ? "Met" : "Not Met");
+    printf("DEBUG stop_actual_audio_recording: Final Plant should grow: %s\n", plant_should_grow_final ? "YES" : "NO");
 
-    return plant_should_grow;
+    return plant_should_grow_final;
 }
 
 static void cleanup_audio_recording(void) {
-    if (isActuallyRecording && hWaveIn != NULL) {
-        isActuallyRecording = false; // Ensure waveInProc stops queueing
-        MMRESULT reset_res = waveInReset(hWaveIn);
-        if (reset_res != MMSYSERR_NOERROR) {
-            char err_text[256]; waveInGetErrorTextA(reset_res, err_text, 256);
-            fprintf(stderr, "清理期間重置 wave 輸入錯誤: %u (%s)\n", reset_res, err_text);
-        }
-    } else {
-        isActuallyRecording = false; // Defensive
-    }
+    isActuallyRecording = false; // Set this first
 
     if (hWaveIn != NULL) {
-        // Unprepare all headers
+        MMRESULT stop_res = waveInStop(hWaveIn);
+        if (stop_res != MMSYSERR_NOERROR) {
+            char err_text[256];
+            waveInGetErrorTextA(stop_res, err_text, sizeof(err_text));
+            fprintf(stderr, "cleanup_audio_recording: waveInStop error: %u (%s)\n", stop_res, err_text);
+            audio_device_error_occurred = true; // Flag the error
+        }
+
+        MMRESULT reset_res = waveInReset(hWaveIn);
+        if (reset_res != MMSYSERR_NOERROR) {
+            char err_text[256];
+            waveInGetErrorTextA(reset_res, err_text, sizeof(err_text));
+            fprintf(stderr, "cleanup_audio_recording: waveInReset error: %u (%s)\n", reset_res, err_text);
+            audio_device_error_occurred = true; // Flag the error
+        }
+
+        // Unprepare all headers (existing loop)
         for (int i = 0; i < NUM_AUDIO_BUFFERS; ++i) {
-            if (waveHdrs[i].dwFlags & WHDR_PREPARED) {
+            if (pAudioBuffers[i] != NULL && (waveHdrs[i].dwFlags & WHDR_PREPARED)) { // Added pAudioBuffers[i] != NULL check for safety
                 MMRESULT res_unprep = waveInUnprepareHeader(hWaveIn, &waveHdrs[i], sizeof(WAVEHDR));
-                // WAVERR_UNPREPARED is not an error if it was already unprepared or never prepared properly.
                 if (res_unprep != MMSYSERR_NOERROR && res_unprep != WAVERR_UNPREPARED) {
                     char err_text[256]; waveInGetErrorTextA(res_unprep, err_text, 256);
-                    fprintf(stderr, "清理期間取消準備 wave 標頭 %d (%p) 錯誤: %u (%s)\n", i, &waveHdrs[i], res_unprep, err_text);
+                    fprintf(stderr, "cleanup_audio_recording: waveInUnprepareHeader error for buffer %d: %u (%s)\n", i, res_unprep, err_text);
+                    audio_device_error_occurred = true; // Flag the error
                 }
             }
-            // ZeroMemory(&waveHdrs[i], sizeof(WAVEHDR)); // Not strictly necessary here as buffers are freed.
         }
 
         MMRESULT close_res = waveInClose(hWaveIn);
         if (close_res != MMSYSERR_NOERROR) {
-            char err_text[256]; waveInGetErrorTextA(close_res, err_text, 256);
-            fprintf(stderr, "關閉 wave 輸入裝置錯誤: %u (%s)\n", close_res, err_text);
+            char err_text[256];
+            waveInGetErrorTextA(close_res, err_text, sizeof(err_text));
+            fprintf(stderr, "cleanup_audio_recording: waveInClose error: %u (%s)\n", close_res, err_text);
+            audio_device_error_occurred = true; // Flag the error
         }
-        hWaveIn = NULL;
+        hWaveIn = NULL; // Set to NULL immediately after close
+    } else {
+        // Log that hWaveIn was already NULL if relevant
+        // fprintf(stderr, "cleanup_audio_recording: hWaveIn was already NULL. No audio device operations performed.\n");
     }
 
     // Free allocated audio buffers

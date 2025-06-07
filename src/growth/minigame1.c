@@ -110,17 +110,21 @@ static float accumulated_rms_sum = 0.0f;
 static int rms_samples_count = 0;
 
 static ALLEGRO_FONT *large_font = NULL;
-
+static bool audio_device_error_occurred = false;
+static Button error_screen_buttons[3];
+static bool error_buttons_initialized = false;
 
 static void prepare_audio_recording(void);
 static void start_actual_audio_recording(void);
 static bool stop_actual_audio_recording(void);
 static void cleanup_audio_recording(void);
 static float calculate_rms(const short* samples, int count);
+static void init_error_screen_buttons(void);
 static void CALLBACK waveInProc(HWAVEIN hwi, UINT uMsg, DWORD_PTR dwInstance, DWORD_PTR dwParam1, DWORD_PTR dwParam2);
 
 
 void init_minigame1(void) {
+    init_error_screen_buttons();
     if (!minigame_srand_called) {
         srand(time(NULL));
         minigame_srand_called = true;
@@ -205,6 +209,30 @@ static float calculate_rms(const short* samples, int count) {
 
 
 void render_minigame1(void) {
+    if (audio_device_error_occurred) {
+        al_clear_to_color(al_map_rgb(30, 30, 30)); // Dark background for error screen
+
+        // Ensure error buttons are initialized
+        if (!error_buttons_initialized) {
+            init_error_screen_buttons();
+        }
+
+        float text_y_pos = SCREEN_HEIGHT / 2.0f - 100;
+        if (large_font) { // Use large_font if available, otherwise default font
+            al_draw_text(large_font, al_map_rgb(255, 100, 100), SCREEN_WIDTH / 2.0f, text_y_pos, ALLEGRO_ALIGN_CENTER, "請檢查設備");
+        } else {
+            al_draw_text(font, al_map_rgb(255, 100, 100), SCREEN_WIDTH / 2.0f, text_y_pos, ALLEGRO_ALIGN_CENTER, "請檢查設備");
+        }
+
+        // Draw the three error buttons
+        for (int i = 0; i < 3; ++i) {
+            Button* b = &error_screen_buttons[i];
+            al_draw_filled_rectangle(b->x, b->y, b->x + b->width, b->y + b->height, b->is_hovered ? b->hover_color : b->color);
+            al_draw_text(font, b->text_color, b->x + b->width / 2.0f, b->y + (b->height / 2.0f) - (al_get_font_line_height(font) / 2.0f), ALLEGRO_ALIGN_CENTER, b->text);
+        }
+        // After drawing error UI, nothing else from normal render should be drawn
+        return;
+    }
     al_clear_to_color(al_map_rgb(50, 50, 70));
     char display_text_buffer[256];
     float y_offset = 60;
@@ -396,6 +424,68 @@ void render_minigame1(void) {
 }
 
 void handle_minigame1_input(ALLEGRO_EVENT ev) {
+    if (audio_device_error_occurred) {
+        if (!error_buttons_initialized) { // Should be initialized, but as a safeguard
+            init_error_screen_buttons();
+        }
+
+        if (ev.type == ALLEGRO_EVENT_MOUSE_AXES) {
+            for (int i = 0; i < 3; ++i) {
+                error_screen_buttons[i].is_hovered = false;
+                if (ev.mouse.x >= error_screen_buttons[i].x && ev.mouse.x <= error_screen_buttons[i].x + error_screen_buttons[i].width &&
+                    ev.mouse.y >= error_screen_buttons[i].y && ev.mouse.y <= error_screen_buttons[i].y + error_screen_buttons[i].height) {
+                    error_screen_buttons[i].is_hovered = true;
+                }
+            }
+        } else if (ev.type == ALLEGRO_EVENT_MOUSE_BUTTON_DOWN) {
+            if (ev.mouse.button == 1) {
+                bool error_button_clicked = false;
+                // Button 0: Restart ("重新開始")
+                if (error_screen_buttons[0].is_hovered) {
+                    printf("Minigame1: Audio error - Restart button clicked.\n");
+                    audio_device_error_occurred = false;
+                    error_buttons_initialized = false; // Re-initialize buttons on next minigame init
+                    init_minigame1(); // Resets the minigame, including audio cleanup
+                    error_button_clicked = true;
+                }
+                // Button 1: Return to Minigame Menu ("返回主選單")
+                else if (error_screen_buttons[1].is_hovered) {
+                    printf("Minigame1: Audio error - Return to Menu button clicked.\n");
+                    audio_device_error_occurred = false;
+                    error_buttons_initialized = false;
+                    cleanup_audio_recording(); // Clean up audio
+                    // Reset state to before singing started, but keep seed/plant progress
+                    is_singing = false;
+                    is_in_countdown_animation = false;
+                    // Other relevant state resets if any, to show "Start Singing" button
+                    displayPleaseSingMessage = false;
+                    current_recording_elapsed_time_sec = 0.0f;
+                    t1_countdown_finish_time = 0.0; // Reset timers
+                    t2_singing_start_time = -1.0;
+                    t_singing_loud_duration = 0.0;
+                    t4_complete_button_press_time = 0.0;
+                    singing_is_successful_realtime = false;
+                    // game_phase remains MINIGAME1
+                    error_button_clicked = true;
+                }
+                // Button 2: Exit Game ("離開遊戲")
+                else if (error_screen_buttons[2].is_hovered) {
+                    printf("Minigame1: Audio error - Exit Game button clicked.\n");
+                    audio_device_error_occurred = false;
+                    error_buttons_initialized = false;
+                    cleanup_audio_recording(); // Clean up audio
+                    game_phase = GROWTH;       // Go back to the main game/growth phase
+                    error_button_clicked = true;
+                }
+
+                if (error_button_clicked) {
+                    for (int i = 0; i < 3; ++i) { error_screen_buttons[i].is_hovered = false; }
+                }
+            }
+        }
+        return; // Important: Do not process other input if error screen is active
+    }
+
     if (ev.type == ALLEGRO_EVENT_MOUSE_AXES) {
         for (int i = 0; i < NUM_MINIGAME1_BUTTONS; ++i) { minigame_buttons[i].is_hovered = false; }
         if (!is_in_countdown_animation) {
@@ -535,6 +625,24 @@ void handle_minigame1_input(ALLEGRO_EVENT ev) {
 }
 
 void update_minigame1(void) {
+    if (audio_device_error_occurred) {
+        if (isActuallyRecording) {
+            isActuallyRecording = false; // Signal waveInProc to stop processing new buffers or re-adding them
+            if (hWaveIn != NULL) {
+                MMRESULT reset_res = waveInReset(hWaveIn);
+                if (reset_res != MMSYSERR_NOERROR) {
+                    char err_text[256];
+                    waveInGetErrorTextA(reset_res, err_text, sizeof(err_text));
+                    fprintf(stderr, "update_minigame1: waveInReset error during audio_device_error handling: %u (%s)\n", reset_res, err_text);
+                    // hWaveIn might be in an unusable state, but cleanup_audio_recording will attempt full cleanup later.
+                }
+            }
+        }
+        is_singing = false;
+        is_in_countdown_animation = false;
+        // No more audio processing this frame. UI will be handled by render_minigame1's check of audio_device_error_occurred
+        return;
+    }
     double current_time = al_get_time();
 
     if (is_in_countdown_animation) {
@@ -692,6 +800,40 @@ void update_minigame1(void) {
     }
 }
 
+static void init_error_screen_buttons(void) {
+    if (error_buttons_initialized) return;
+
+    float button_width = 220; // Slightly wider for potentially longer text
+    float button_height = 50;
+    float center_x = SCREEN_WIDTH / 2.0f;
+    float button_y_start = SCREEN_HEIGHT / 2.0f + 0; // Start Y for the first button
+
+    // Button 0: Restart
+    error_screen_buttons[0] = (Button){
+        center_x - button_width / 2.0f, button_y_start, button_width, button_height,
+        "重新開始", // Restart
+        MINIGAME1, // Action phase (can be a generic one or a new one if needed)
+        al_map_rgb(170, 70, 70), al_map_rgb(200, 100, 100), al_map_rgb(255, 255, 255), false
+    };
+
+    // Button 1: Return to Menu (was "Finish Singing")
+    error_screen_buttons[1] = (Button){
+        center_x - button_width / 2.0f, button_y_start + button_height + 20, button_width, button_height,
+        "返回主選單", // Return to Menu
+        MINIGAME1,
+        al_map_rgb(70, 170, 170), al_map_rgb(100, 200, 200), al_map_rgb(255, 255, 255), false
+    };
+
+    // Button 2: Exit Game
+    error_screen_buttons[2] = (Button){
+        center_x - button_width / 2.0f, button_y_start + (button_height + 20) * 2, button_width, button_height,
+        "離開遊戲", // Exit Game
+        GROWTH, // Action phase to go back to main menu/growth phase
+        al_map_rgb(100, 100, 100), al_map_rgb(130, 130, 130), al_map_rgb(255, 255, 255), false
+    };
+    error_buttons_initialized = true;
+}
+
 static void prepare_audio_recording(void) {
     for (int i = 0; i < NUM_AUDIO_BUFFERS; ++i) {
         pAudioBuffers[i] = NULL;
@@ -759,6 +901,9 @@ static void CALLBACK waveInProc(HWAVEIN hwi, UINT uMsg, DWORD_PTR dwInstance, DW
             break;
         case WIM_DATA:
         {
+            if (audio_device_error_occurred) {
+                return;
+            }
             WAVEHDR* pDoneHeader = (WAVEHDR*)dwParam1;
             int filled_buffer_idx = -1;
 
@@ -805,6 +950,7 @@ static void CALLBACK waveInProc(HWAVEIN hwi, UINT uMsg, DWORD_PTR dwInstance, DW
                     waveInGetErrorTextA(add_res, error_text, sizeof(error_text));
                     fprintf(stderr, "waveInProc: waveInAddBuffer error %u: %s. Header Addr: %p\n", add_res, error_text, pDoneHeader);
                     isActuallyRecording = false; // Critical error, stop recording
+                    audio_device_error_occurred = true;
                 }
             }
             break;

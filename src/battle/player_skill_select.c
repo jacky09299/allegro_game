@@ -28,7 +28,7 @@ case ALLEGRO_KEY_R: player_use_selected_skill(); break;
 
 // 全域變數：目前選擇的技能索引
 static int selected_skill_index = 0;
-int player_skill_group[5] // 玩家技能組
+int player_skill_group[4] // 玩家技能組
 static ALLEGRO_BITMAP* skill_img[MAX_PLAYER_SKILLS]; // 技能圖示陣列
 // ...existing code...
 const char* skill_icon_filenames[MAX_PLAYER_SKILLS] = {

@@ -173,7 +173,7 @@ int main() {
                 case BACKPACK: render_backpack(); break;
                 case TUTORIAL: render_tutorial_page(); break;
                 case EQUIPMENT: 
-                    render_player_skill_select(100, 100); // Render skill selection UI
+                    render_player_skill_select(); // Render skill selection UI
                     break;
                 default: break;
             }

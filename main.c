@@ -26,6 +26,9 @@
 #include "include/minigame2.h"
 #include "include/lottery.h"
 #include "include/backpack.h"
+#include "include/tutorial_page.h"
+#include "include/player_skill_select.h" // For player skill management
+
 /**
  * 初始化遊戲所需的 Allegro 系統、資源和遊戲物件。
  */
@@ -66,6 +69,7 @@ void init_game_systems_and_assets() {
     init_menu_buttons();                   
     init_growth_buttons();
     init_escape_gate();
+    init_tutorial_page();
     game_phase = MENU;                     
 
     al_start_timer(timer); 
@@ -147,6 +151,10 @@ int main() {
                 case MINIGAME2: handle_minigame2_input(ev); break;
                 case LOTTERY: handle_lottery_input(ev); break;
                 case BACKPACK: handle_backpack_input(ev); break;
+                case TUTORIAL: handle_tutorial_page_input(ev); break;
+                case EQUIPMENT: 
+                    handle_player_skill_select_input(&ev); // Handle skill selection input
+                    break;
                 default: break;
             }
         }
@@ -163,6 +171,10 @@ int main() {
                 case MINIGAME2: render_minigame2(); break;
                 case LOTTERY: render_lottery(); break;
                 case BACKPACK: render_backpack(); break;
+                case TUTORIAL: render_tutorial_page(); break;
+                case EQUIPMENT: 
+                    render_player_skill_select(100, 100); // Render skill selection UI
+                    break;
                 default: break;
             }
             al_flip_display(); 

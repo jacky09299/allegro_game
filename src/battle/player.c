@@ -10,6 +10,7 @@
 #include <math.h>      // For cos, sin, fmin, atan2, sqrtf
 #include <allegro5/allegro_primitives.h> // For al_draw_filled_circle, al_draw_line
 #include <allegro5/allegro.h> // For ALLEGRO_EVENT (already in player.h but good for .c too)
+#include "player_skill_select.h" // For player skill selection functions
 
 /**
  * 玩家執行防禦。
@@ -53,11 +54,11 @@ void init_player() { // Changed return type to void, modifies global player
         player.learned_skills[i].cooldown_timers = 0;
         player.learned_skills[i].duration_timers = 0;
     }
-    player.learned_skills[SKILL_WATER_ATTACK].type = SKILL_WATER_ATTACK;
-    player.learned_skills[SKILL_ICE_SHARD].type = SKILL_ICE_SHARD;
-    player.learned_skills[SKILL_LIGHTNING_BOLT].type = SKILL_LIGHTNING_BOLT;
-    player.learned_skills[SKILL_HEAL].type = SKILL_HEAL;
-    player.learned_skills[SKILL_FIREBALL].type = SKILL_FIREBALL;
+    player.learned_skills[0].type = SKILL_WATER_ATTACK;
+    player.learned_skills[1].type = SKILL_ICE_SHARD;
+    player.learned_skills[2].type = SKILL_LIGHTNING_BOLT;
+    player.learned_skills[3].type = SKILL_HEAL;
+    player.learned_skills[4].type = SKILL_FIREBALL;
     for (int i = 0; i < NUM_ITEMS; ++i) {
         player.item_quantities[i] = 0;
     }
@@ -211,13 +212,8 @@ void player_handle_input(Player* p, ALLEGRO_EVENT* ev, bool keys[]) {
     if (ev) { // Check if ev is not NULL
         if (ev->type == ALLEGRO_EVENT_KEY_DOWN) {
             switch (ev->keyboard.keycode) {
-                case ALLEGRO_KEY_J: /* No action defined */ break;
-                case ALLEGRO_KEY_K: player_use_water_attack(); break;
-                case ALLEGRO_KEY_L: player_use_ice_shard(); break;
-                case ALLEGRO_KEY_U: player_use_lightning_bolt(); break;
-                case ALLEGRO_KEY_I: player_use_heal(); break;
-                case ALLEGRO_KEY_O: player_use_fireball(); break;
-                case ALLEGRO_KEY_E: /* No action defined */; break;
+                case ALLEGRO_KEY_Q: player_switch_skill(); break;
+                case ALLEGRO_KEY_R: player_use_selected_skill(); break;
                 case ALLEGRO_KEY_EQUALS: battle_speed_multiplier += 0.1f; break;  //測試用
                 case ALLEGRO_KEY_MINUS: 
                     if (battle_speed_multiplier >= 0.1f)  battle_speed_multiplier -= 0.1f;  //測試用

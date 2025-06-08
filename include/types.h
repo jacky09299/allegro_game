@@ -23,7 +23,10 @@ typedef enum {
     MINIGAME2,  // 小遊戲2
     LOTTERY,      // 抽獎
     BACKPACK,   // 背包
-    BATTLE      // 戰鬥階段
+    BATTLE,      // 戰鬥階段
+    TUTORIAL,    // 教學階段
+    EQUIPMENT // 裝備階段
+    
 } GamePhase;
 
 #define MAX_SKILLS 12

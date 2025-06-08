@@ -12,6 +12,8 @@
 #include "minigame2.h"
 #include "lottery.h"
 #include "backpack.h"
+#include "player_skill_select.h" // For player skill management
+
 /**
  * 初始化主選單的按鈕。
  */
@@ -27,7 +29,7 @@ void init_menu_buttons() {
     };
     menu_buttons[1] = (Button){
         center_x - button_width / 2, SCREEN_HEIGHT / 2.0f,
-        button_width, button_height, "繼續遊戲", GROWTH,
+        button_width, button_height, "遊戲手冊", TUTORIAL,
         al_map_rgb(70, 170, 70), al_map_rgb(100, 220, 100), al_map_rgb(255, 255, 255), false
     };
     menu_buttons[2] = (Button){
@@ -168,14 +170,21 @@ void handle_growth_screen_input(ALLEGRO_EVENT ev) {
         for (int i = 0; i < 3; ++i) {
             menu_buttons[i].is_hovered = false;
         }
-    } else if (ev.type == ALLEGRO_EVENT_MOUSE_AXES) {
+    }
+    else if (ev.type == ALLEGRO_EVENT_KEY_DOWN && ev.keyboard.keycode == ALLEGRO_KEY_E) {
+        game_phase = EQUIPMENT;
+        init_player_skill_select();
+    }
+
+    else if (ev.type == ALLEGRO_EVENT_MOUSE_AXES) {
         for (int i = 0; i < MAX_GROWTH_BUTTONS; ++i) {
             growth_buttons[i].is_hovered = (ev.mouse.x >= growth_buttons[i].x &&
                                          ev.mouse.x <= growth_buttons[i].x + growth_buttons[i].width &&
                                          ev.mouse.y >= growth_buttons[i].y &&
                                          ev.mouse.y <= growth_buttons[i].y + growth_buttons[i].height);
         }
-    } else if (ev.type == ALLEGRO_EVENT_MOUSE_BUTTON_DOWN && ev.mouse.button == 1) {
+    } 
+    else if (ev.type == ALLEGRO_EVENT_MOUSE_BUTTON_DOWN && ev.mouse.button == 1) {
         if (growth_buttons[0].is_hovered) {
             on_minigame1_button_click();
         } else if (growth_buttons[1].is_hovered) {

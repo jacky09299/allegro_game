@@ -1,0 +1,5 @@
+TEST_INFO: Attempting to load from test_save.dat...
+TEST_INFO: load_game_progress reported success.
+VERIFY_VALUE: player.money = 5678
+VERIFY_VALUE: current_day = 10
+TEST_INFO: Exiting after load test.

@@ -9,7 +9,7 @@
 
 #include <allegro5/allegro_primitives.h> // 用於 al_draw_filled_circle, al_draw_line, al_clear_to_color 等
 
-char dmg_text[16];
+static char dmg_text[16];
 
 /**
  * @brief 初始化投射物陣列。

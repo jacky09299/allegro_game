@@ -1,0 +1,3 @@
+TEST_INFO: Preparing for test save (moved before init_game_systems_and_assets)...
+TEST_INFO: Set player.money=5678, current_day=10
+TEST_INFO: Called save_game_progress("test_save.dat"). Exiting.

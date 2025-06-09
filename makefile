@@ -1,8 +1,9 @@
 OUT := game
 CC := gcc
 
-CXXFLAGS := -Wall -std=c11 -O2 -Iinclude
+CXXFLAGS := -Wall -std=c11 -O2 -Iinclude -D_GNU_SOURCE
 SOURCE := $(wildcard *.c */*.c */*/*.c)
+SOURCE := $(filter-out src/growth/minigame1.c, $(SOURCE))
 
 # SOURCE := $(filter-out tutorial, $(SOURCE))
 OBJ := $(patsubst %.c, %.o, $(notdir $(SOURCE)))
@@ -31,7 +32,7 @@ else # Mac OS / Linux
 	export PKG_CONFIG_PATH=/usr/local/lib/pkgconfig
 	export DYLD_LIBRARY_PATH=/usr/local/lib:$DYLD_LIBRARY_PATH
 	ALLEGRO_LIBRARIES := allegro-5 allegro_image-5 allegro_font-5 allegro_ttf-5 allegro_dialog-5 allegro_primitives-5 allegro_audio-5 allegro_acodec-5
-	ALLEGRO_FLAGS_RELEASE := $(shell pkg-config --cflags --libs "$(ALLEGRO_LIBRARIES) <= 5.2.7") -lallegro
+	ALLEGRO_FLAGS_RELEASE := $(shell pkg-config --cflags --libs "$(ALLEGRO_LIBRARIES) <= 5.2.9") -lallegro
 	ALLEGRO_DLL_PATH_RELEASE := 
 	ALLEGRO_FLAGS_DEBUG := $(ALLEGRO_FLAGS_RELEASE)
 	ALLEGRO_DLL_PATH_DEBUG := 
@@ -45,12 +46,12 @@ endif
 
 debug:
 	$(CC) -c -g $(CXXFLAGS) $(SOURCE) $(ALLEGRO_FLAGS_DEBUG) -D DEBUG
-	$(CC) $(CXXFLAGS) -o $(OUT) $(OBJ) $(ALLEGRO_FLAGS_DEBUG) $(ALLEGRO_DLL_PATH_DEBUG)
+	$(CC) $(CXXFLAGS) -o $(OUT) $(OBJ) $(ALLEGRO_FLAGS_DEBUG) $(ALLEGRO_DLL_PATH_DEBUG) -lm
 	$(RM_OBJ)
 
 release:
 	$(CC) -c $(CXXFLAGS) $(SOURCE) $(ALLEGRO_FLAGS_RELEASE)
-	$(CC) $(CXXFLAGS) -o $(OUT) $(OBJ) $(ALLEGRO_FLAGS_RELEASE) $(ALLEGRO_DLL_PATH_RELEASE)
+	$(CC) $(CXXFLAGS) -o $(OUT) $(OBJ) $(ALLEGRO_FLAGS_RELEASE) $(ALLEGRO_DLL_PATH_RELEASE) -lm
 	$(RM_OBJ)
 
 clean:

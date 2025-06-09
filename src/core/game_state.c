@@ -208,8 +208,9 @@ void handle_growth_screen_input(ALLEGRO_EVENT ev) {
 
 // --- 養成畫面按鈕點擊事件的處理函式 ---
 void on_minigame1_button_click() {
-    game_phase = MINIGAME1;
-    init_minigame1();
+    // game_phase = MINIGAME1; // Temporarily disabled for save/load testing
+    // init_minigame1(); // Temporarily disabled for save/load testing
+    printf("Minigame 1 is temporarily disabled.\n"); // Optional: feedback to user
 }
 
 void on_minigame2_button_click() {

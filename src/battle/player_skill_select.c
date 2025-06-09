@@ -18,7 +18,7 @@
 // --- UI Layout Definitions ---
 #define SKILL_LIBRARY_ROWS 3
 #define SKILL_LIBRARY_COLS 5
-#define NUM_DISPLAY_SKILLS 10
+#define NUM_DISPLAY_SKILLS 15
 
 // Positions and sizes
 #define EQUIPPED_SLOT_X 150
@@ -53,15 +53,20 @@ static bool voronoi_needs_update = true;
 
 const char* skill_icon_filenames[MAX_PLAYER_SKILLS] = {
     NULL,
-    "assets/image/skill1.png", "assets/image/skill2.png", "assets/image/skill3.png",
-    "assets/image/skill4.png", "assets/image/skill5.png", "assets/image/skill6.png",
-    "assets/image/skill7.png", "assets/image/skill8.png", "assets/image/skill9.png", 
-    "assets/image/skill9.png"
+    "assets/image/skill1.png", "assets/image/skill2.png", "assets/image/skill3.png", // 3
+    "assets/image/skill4.png", "assets/image/skill5.png", "assets/image/skill6.png", // 6
+    "assets/image/skill7.png", "assets/image/skill8.png", "assets/image/skill10.png", // 9
+    "assets/image/skill1.png", "assets/image/skill1.png", "assets/image/skill1.png", // 12
+    "assets/image/skill1.png", "assets/image/skill1.png", "assets/image/skill9.png" 
+    
 };
 
 const char* skill_names[] = {
     "無", "閃電鏈", "治癒", "元素彈",
-    "元素衝刺", "蓄力槍", "集中", "水晶浮球", "符文爆破", "完美防禦" , "反轉結界"
+    "元素衝刺", "蓄力槍", "集中", "水晶浮球",
+     "符文爆破", "反轉結界", "元素散彈", "元素暴衝",
+     "大治療術", "元素連擊", 
+     "元素反擊", "完美防禦" 
     };
 
 static void generate_voronoi_overlay();
@@ -95,7 +100,12 @@ void init_player_skill_select() {
     available_library_skills[6] = SKILL_ARCANE_ORB; //水晶浮球四射
     available_library_skills[7] = SKILL_RUNE_IMPLOSION; //符文爆破
     available_library_skills[8] = SKILL_REFLECT_BARRIER; //反轉結界
-    available_library_skills[9] = SKILL_PREFECT_DEFENSE; //完美防禦
+    available_library_skills[9] = SKILL_ELEMENTAL_SCATTER;
+    available_library_skills[10] = SKILL_ELEMENTAL_BLAST;
+    available_library_skills[11] = SKILL_BIG_HEAL;
+    available_library_skills[12] = SKILL_RAPID_SHOOT;
+    available_library_skills[13] = SKILL_ELEMENTAL_COUNTER;
+    available_library_skills[14] = SKILL_PREFECT_DEFENSE; //完美防禦
     
 
 

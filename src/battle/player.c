@@ -24,7 +24,7 @@ void play_golden_finger() {
  */
 void player_defense_start() {
     printf("玩家開始防禦\n");
-    if (!player.learned_skills[SKILL_PREFECT_DEFENSE].learned) return;
+    // if (!player.learned_skills[SKILL_PREFECT_DEFENSE].learned) return;
 
     if (player.state == STATE_STUN || player.mp <= 0) {
         player.state = STATE_NORMAL;
@@ -87,6 +87,21 @@ void player_skill_start() {
         player_use_reflect_barrier();
         player.state = STATE_NORMAL;
         break;
+    case SKILL_BIG_HEAL:
+        player_start_big_heal();
+        break;
+    case SKILL_ELEMENTAL_BLAST:
+        player_use_elemental_blast();
+        player.state = STATE_NORMAL;
+        break;
+    case SKILL_ELEMENTAL_SCATTER:
+        player_use_elemental_scatter();
+        player.state = STATE_NORMAL;
+        break;
+    case SKILL_RAPID_SHOOT:
+        player_use_rapid_element_balls();
+        player.state = STATE_NORMAL;
+        break;
     default:
         player.state = STATE_NORMAL;
         break;
@@ -107,6 +122,9 @@ void player_skill_end() {
     case SKILL_CHARGE_BEAM:
         player_end_charge_beam();
         player.state = STATE_NORMAL;
+        break;
+    case SKILL_BIG_HEAL:
+        player_end_big_heal();
         break;
     default:
         player.state = STATE_NORMAL;
@@ -133,7 +151,8 @@ void player_skill_end() {
         next_pos = (next_pos + 1) % MAX_EQUIPPED_SKILLS;
         // 跳過 SKILL_NONE 和 SKILL_PREFECT_DEFENSE
         if (player_skill_group[next_pos] != SKILL_NONE &&
-            player_skill_group[next_pos] != SKILL_PREFECT_DEFENSE) {
+            player_skill_group[next_pos] != SKILL_PREFECT_DEFENSE
+            && player_skill_group[next_pos] != SKILL_ELEMENTAL_COUNTER) {
             player.current_skill_index = player_skill_group[next_pos];
             break;
         }
@@ -235,8 +254,10 @@ void draw_player_circle_hud() {
 void draw_player_skill_ui() {
     const char* skill_names[] = {
     "無", "閃電鏈", "治癒", "元素彈",
-    "元素衝刺", "蓄力槍", "集中", "水晶浮球", 
-    "符文爆破", "反轉結界", "完美防禦"
+    "元素衝刺", "蓄力槍", "集中", "水晶浮球",
+    "符文爆破", "反轉結界", "元素散彈", "元素暴衝",
+    "大治療術", "元素連擊", 
+    "元素反擊", "完美防禦" 
     };
     int skill_count = sizeof(skill_names) / sizeof(skill_names[0]);
     if(player.current_skill_index > skill_count) return;

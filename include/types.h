@@ -5,7 +5,7 @@
 #include <allegro5/allegro.h> // For ALLEGRO_COLOR
 #include "config.h" // For MAX_PLAYER_SKILLS, MAX_BOSSES
 
-#define MAX_LOTTERY_PRIZES 4 // 我們有四種抽獎獎品
+#define MAX_LOTTERY_PRIZES 5 // 我們有五種抽獎獎品
 #define MAX_BACKPACK_SLOTS 10 // 背包中最多可存放的不同物品種類
 
 #define MAX_WARNING_CIRCLES 10 // 最多警示圈上限
@@ -29,10 +29,10 @@ typedef enum {
     
 } GamePhase;
 
-#define MAX_SKILLS 16
+#define MAX_SKILLS 21
 #define MAX_BOSS_SKILLS 3                   // BOSS 技能數量上限
 #define MAX_BOSS_PRIMARY 2
-#define MAX_PLAYER_SKILLS 11                 // 玩家最大技能數量
+#define MAX_PLAYER_SKILLS 16                 // 玩家最大技能數量
 // 技能標識符枚舉
 typedef enum {
     SKILL_NONE,             // 無技能
@@ -47,6 +47,12 @@ typedef enum {
     SKILL_RUNE_IMPLOSION,
     SKILL_REFLECT_BARRIER,
 
+    SKILL_ELEMENTAL_SCATTER,
+    SKILL_ELEMENTAL_BLAST,
+    SKILL_BIG_HEAL,
+    SKILL_RAPID_SHOOT,
+
+    SKILL_ELEMENTAL_COUNTER, // 元素反擊 new
     SKILL_PREFECT_DEFENSE,   // 完美防禦
 
     BOSS_SKILL_1,  // Boss 特殊技能 1
@@ -102,8 +108,8 @@ typedef enum {
     PROJ_TYPE_FIRE,             // 火系投射物 (通常為 Boss)
     PROJ_TYPE_ICE,              // 冰系投射物
     PROJ_TYPE_PLAYER_FIREBALL,   // 玩家火球術
-    PROJ_TYPE_BIG_EARTHBALL,      // 大土球
-    PROJ_TYPE_DASH                  // 元素衝刺
+    PROJ_TYPE_BIG_EARTHBALL,     // 大土球
+    PROJ_TYPE_DASH               // 元素衝刺
 } ProjectileType;
 
 // 戰鬥特效枚舉

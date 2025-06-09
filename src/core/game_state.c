@@ -13,6 +13,7 @@
 #include "lottery.h"
 #include "backpack.h"
 #include "player_skill_select.h" // For player skill management
+static int count_play_minigame[3] = {0};
 
 /**
  * 初始化主選單的按鈕。
@@ -148,8 +149,6 @@ void handle_main_menu_input(ALLEGRO_EVENT ev) {
                     start_new_battle(); // MODIFIED
                 }
                 if (game_phase == GROWTH) {
-                    day_time = 1;
-                    current_day = 1;
                      for (int k = 0; k < MAX_GROWTH_BUTTONS; ++k) {
                         growth_buttons[k].is_hovered = false;
                     }
@@ -171,10 +170,11 @@ void handle_growth_screen_input(ALLEGRO_EVENT ev) {
             menu_buttons[i].is_hovered = false;
         }
     }
+    /*
     else if (ev.type == ALLEGRO_EVENT_KEY_DOWN && ev.keyboard.keycode == ALLEGRO_KEY_E) {
         game_phase = EQUIPMENT;
     }
-
+    */
     else if (ev.type == ALLEGRO_EVENT_MOUSE_AXES) {
         for (int i = 0; i < MAX_GROWTH_BUTTONS; ++i) {
             growth_buttons[i].is_hovered = (ev.mouse.x >= growth_buttons[i].x &&
@@ -193,12 +193,22 @@ void handle_growth_screen_input(ALLEGRO_EVENT ev) {
         } else if (growth_buttons[3].is_hovered) {
             on_backpack_button_click();
         }else if (growth_buttons[4].is_hovered) {
+            int restore = (2 - count_play_minigame[day_time-1]) * 5;
+            if(restore > 0) {
+                player.hp += restore;
+                if(player.hp > player.max_hp) player.hp = player.max_hp;
+                snprintf(growth_message, sizeof(growth_message), "剩餘的養成次數已轉為血量(hp+%d)",restore);
+                growth_message_timer = 180; // 顯示訊息約 3 秒（假設 60 FPS）
+            }
             if (day_time<3){
                 day_time++;
             }
             else {
                 day_time = 1;
                 current_day++;
+                count_play_minigame[0] = 0;
+                count_play_minigame[1] = 0;
+                count_play_minigame[2] = 0;
                 game_phase = BATTLE;
                 start_new_battle(); 
             }
@@ -208,12 +218,26 @@ void handle_growth_screen_input(ALLEGRO_EVENT ev) {
 
 // --- 養成畫面按鈕點擊事件的處理函式 ---
 void on_minigame1_button_click() {
-    game_phase = MINIGAME1;
-    init_minigame1();
+    if(count_play_minigame[day_time-1]<2){
+        count_play_minigame[day_time-1]++;
+        game_phase = MINIGAME1;
+        init_minigame1();
+    } else {
+        snprintf(growth_message, sizeof(growth_message), "養成次數已用罄");
+        growth_message_timer = 180; // 顯示訊息約 3 秒（假設 60 FPS）
+    }
 }
 
 void on_minigame2_button_click() {
-    game_phase = MINIGAME2;
+    if(count_play_minigame[day_time-1]<2){
+        count_play_minigame[day_time-1]++;
+        game_phase = MINIGAME2;
+    } else 
+    {
+        snprintf(growth_message, sizeof(growth_message), "養成次數已用罄");
+        growth_message_timer = 180; // 顯示訊息約 3 秒（假設 60 FPS）
+    }
+    
 }
 
 void on_lottery_button_click() {

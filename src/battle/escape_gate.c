@@ -9,7 +9,7 @@
 ALLEGRO_BITMAP* gate_img = NULL;
 
 // 新增：控制是否顯示羅盤
-bool show_compass = false;
+
 
 /**
  * 初始化逃生門的狀態。

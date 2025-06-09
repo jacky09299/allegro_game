@@ -128,12 +128,17 @@ int player_is_hit() {
                 player.learned_skills[SKILL_FOCUS].charge_timers = 0;
             case SKILL_CHARGE_BEAM:
                 player.learned_skills[SKILL_CHARGE_BEAM].charge_timers = 0;
+            case SKILL_BIG_HEAL:
+                player.learned_skills[SKILL_BIG_HEAL].charge_timers = 0;
         }
     }
     if(player.state == STATE_DEFENSE) {
         if(player.mp < player.max_mp - 10) player.mp += 10; // 回復魔力
         if(player.defense_timer>=0 && player.defense_timer < 10) {
-            player_use_perfect_defense();
+             if (player.learned_skills[SKILL_PREFECT_DEFENSE].learned) 
+             player_use_perfect_defense();
+             if (player.learned_skills[SKILL_ELEMENTAL_COUNTER].learned) 
+             player_use_elemantal_counter();
         } else {
             spawn_floating_text(player.x + 15, player.y - 25, "防禦", al_map_rgba(0, 0, 200, 250));
         }
@@ -153,6 +158,25 @@ void player_use_perfect_defense() {
     player.learned_skills[SKILL_PREFECT_DEFENSE].cooldown_timers = 8 * FPS;
     printf("player triger perfect defense!\n");
 }
+// 元素反擊
+void player_use_elemantal_counter() {
+    if (player.learned_skills[SKILL_ELEMENTAL_COUNTER].cooldown_timers > 0) { 
+        printf("Perfect defense is colling down (%ds)\n", player.learned_skills[SKILL_PREFECT_DEFENSE].cooldown_timers/FPS + 1);
+        spawn_floating_text(player.x + 15, player.y - 25, "防禦", al_map_rgba(0, 0, 200, 250));
+        return;
+    }
+    spawn_floating_text(player.x + 15, player.y - 25, "完美防禦", al_map_rgba(155, 0, 200, 250));
+    int power = 10 + player.magic;
+    spawn_projectile(30, player.x, player.y, player.x + cos(player.facing_angle)*1000, player.y + sin(player.facing_angle)*1000,
+                     OWNER_PLAYER, PROJ_TYPE_ICE, power, 30, 10, -1);
+    spawn_projectile(30, player.x, player.y, player.x + cos(player.facing_angle)*1000, player.y + sin(player.facing_angle)*1000,
+                     OWNER_PLAYER, PROJ_TYPE_WATER, power, 20, 20, -1);
+    spawn_projectile(30, player.x, player.y, player.x + cos(player.facing_angle)*1000, player.y + sin(player.facing_angle)*1000,
+                     OWNER_PLAYER, PROJ_TYPE_FIRE, power, 10, 30, -1);
+    player.learned_skills[SKILL_ELEMENTAL_COUNTER].cooldown_timers = 5 * FPS;
+    printf("player triger perfect defense!\n");
+}
+
 /**
  * 玩家使用元素疾步技能。
  */
@@ -174,6 +198,34 @@ void using_element_dash() {
     // spawn_element_dash_trail(player.x, player.y,al_map_rgba(0, 50, 50, 150));
     // reset
     if(player.learned_skills[SKILL_ELEMENT_DASH].duration_timers == 1){
+        player.speed = player.max_speed;
+        if(player.state != STATE_STUN) player.state = STATE_NORMAL;
+    }
+}
+/**
+ * 玩家使用元素衝撞技能。
+ */
+void player_use_elemental_blast() {
+    if (player.learned_skills[SKILL_ELEMENTAL_BLAST].cooldown_timers > 0) return;
+    if(player.mp < 30) {
+        spawn_floating_text(player.x + 15, player.y - 25, "魔力不足", al_map_rgb(0, 100, 255));
+        return;
+    }
+    player.mp -= 30;
+
+    player.learned_skills[SKILL_ELEMENTAL_BLAST].duration_timers = 0.5 * FPS;
+    player.learned_skills[SKILL_ELEMENTAL_BLAST].cooldown_timers = 12 * FPS;
+}
+void using_elemental_blast() {
+    player.speed = player.max_speed * 1.2f;
+    ProjectileType type = PROJ_TYPE_NONE;
+    player.learned_skills[SKILL_ELEMENTAL_BLAST].variable_1 = (player.learned_skills[SKILL_ELEMENTAL_BLAST].variable_1 + 1)%3;
+    type += player.learned_skills[SKILL_ELEMENTAL_BLAST].variable_1;
+    if(player.learned_skills[SKILL_ELEMENTAL_BLAST].duration_timers % 3 == 0)
+    spawn_projectile(50, player.x, player.y, player.x, player.y, OWNER_PLAYER, type, 2 + player.magic/10, 2, 10, -1);
+    // spawn_element_dash_trail(player.x, player.y,al_map_rgba(0, 50, 50, 150));
+    // reset
+    if(player.learned_skills[SKILL_ELEMENTAL_BLAST].duration_timers == 1){
         player.speed = player.max_speed;
         if(player.state != STATE_STUN) player.state = STATE_NORMAL;
     }
@@ -417,6 +469,30 @@ void player_use_element_ball() {
     }
 }
 /**
+ * 玩家使用元素散彈技能。
+ */
+void player_use_elemental_scatter() {
+    if(player.learned_skills[SKILL_ELEMENTAL_SCATTER].cooldown_timers > 0) return;
+    if(player.mp < 20) {
+        spawn_floating_text(player.x + 15, player.y - 25, "魔力不足", al_map_rgb(0, 100, 255));
+        return;
+    }
+    player.mp -= 20;
+    player.learned_skills[SKILL_ELEMENTAL_SCATTER].cooldown_timers = 3.0f * FPS; 
+
+    float angle[7] = {-15 * M_PI/180, -10 * M_PI/180, -5 * M_PI/180,
+                        0, 5 * M_PI/180, 10 * M_PI/180, 15 * M_PI/180};
+    
+    for(int i=0;i<7;i++){
+        float projectile_target_x = player.x + cos(player.facing_angle + angle[i]) * 1000.0f;
+        float projectile_target_y = player.y + sin(player.facing_angle + angle[i]) * 1000.0f;
+
+        spawn_projectile(-1, player.x, player.y, projectile_target_x, projectile_target_y,
+                      OWNER_PLAYER, PROJ_TYPE_PLAYER_FIREBALL, 1 + player.magic/7, 
+                      PLAYER_FIREBALL_SPEED, 30, -1);
+    }
+}
+/**
  * 玩家使用閃電鏈技能。
  */
 void player_use_lightning_bolt() {
@@ -467,7 +543,7 @@ void player_use_heal() {
     char heal_text[16];
     player.learned_skills[SKILL_HEAL].cooldown_timers = PLAYER_HEAL_SKILL_COOLDOWN; 
     int old_hp = player.hp;
-    player.hp += PLAYER_HEAL_AMOUNT + player.magic * 2; 
+    player.hp += PLAYER_HEAL_AMOUNT + player.magic * 5; 
     if (player.hp > player.max_hp) player.hp = player.max_hp; 
     printf("玩家治療了 %d 點生命！ (%d -> %d)\n", player.hp - old_hp, old_hp, player.hp);
     // 顯示特效
@@ -477,6 +553,46 @@ void player_use_heal() {
 
 /**
  * 玩家使用治療術技能。
+ */
+void player_start_big_heal() {
+    if (player.learned_skills[SKILL_BIG_HEAL].cooldown_timers > 0) { 
+        printf("治療術冷卻中 (%ds)\n", player.learned_skills[SKILL_HEAL].cooldown_timers/FPS + 1);
+        return;
+    }
+    player.state = STATE_CHARGING;
+    player.learned_skills[SKILL_BIG_HEAL].charge_timers = 0; // charge time
+    player.learned_skills[SKILL_BIG_HEAL].x = player.x;
+    player.learned_skills[SKILL_BIG_HEAL].y = player.y;
+}
+
+void using_big_heal() {
+    // 定身
+    player.x = player.learned_skills[SKILL_BIG_HEAL].x;
+    player.y = player.learned_skills[SKILL_BIG_HEAL].y;
+    // 魔法陣
+    spawn_rune_circle(player.x, player.y, 35, al_map_rgba(0, 255, 100, 200));
+    if(player.learned_skills[SKILL_BIG_HEAL].charge_timers % 18 == 0) {
+        char heal_text[16];
+        int old_hp = player.hp;
+        player.hp += player.learned_skills[SKILL_BIG_HEAL].charge_timers/5 + player.magic * 2; 
+        if (player.hp > player.max_hp) player.hp = player.max_hp; 
+        // 顯示特效
+        snprintf(heal_text, sizeof(heal_text), "%.0d", player.hp - old_hp); // 無小數位，%.1f 顯示1位小數也可
+        spawn_floating_text(player.x + 15, player.y - 25, heal_text, al_map_rgba(0, 255, 0, 250));
+    } 
+}
+
+void player_end_big_heal() {
+    if(player.learned_skills[SKILL_BIG_HEAL].charge_timers == 0) return;
+    if(player.state != STATE_STUN) player.state = STATE_NORMAL;
+    
+    player.learned_skills[SKILL_BIG_HEAL].charge_timers = 0; // reset tcharge time
+    player.learned_skills[SKILL_BIG_HEAL].cooldown_timers = 5 * FPS;
+}
+
+
+/**
+ * 玩家使用反轉力場技能。
  */
 void player_use_reflect_barrier() {
     if (player.learned_skills[SKILL_REFLECT_BARRIER].cooldown_timers > 0) { 
@@ -515,9 +631,38 @@ void using_reflect_barrier() {
                 spawn_floating_text(projectiles[i].x, projectiles[i].y, "反轉", al_map_rgba(250, 0, 250, 250));
             }
         }
-    }
-    
+    } 
 }
+
+void player_use_rapid_element_balls() {
+    if (player.learned_skills[SKILL_RAPID_SHOOT].cooldown_timers > 0) return;
+    if(player.mp < 30) {
+        spawn_floating_text(player.x + 15, player.y - 25, "魔力不足", al_map_rgb(0, 100, 255));
+        return;
+    }
+    player.mp -= 30;
+
+    int range = 500;
+    get_clamped_target_position(player.x, player.y, range,
+                                &player.learned_skills[SKILL_RAPID_SHOOT].x, &player.learned_skills[SKILL_RAPID_SHOOT].y);
+    spawn_warning_circle(player.learned_skills[SKILL_RAPID_SHOOT].x, player.learned_skills[SKILL_RAPID_SHOOT].y, 
+                        50, al_map_rgba(255,0,0,250), 2);
+    player.learned_skills[SKILL_RAPID_SHOOT].duration_timers = 4 * FPS;
+    player.learned_skills[SKILL_RAPID_SHOOT].cooldown_timers = 8 * FPS;
+}
+
+void using_rapid_element_balls() {
+    float ratio = (float)player.learned_skills[SKILL_RAPID_SHOOT].duration_timers/(4 * FPS);
+    spawn_warning_circle(player.learned_skills[SKILL_RAPID_SHOOT].x, player.learned_skills[SKILL_RAPID_SHOOT].y, 
+                        10 + 80 * ratio, al_map_rgba(255,0,0,250 - 100 * ratio), 2);
+
+    if(player.learned_skills[SKILL_RAPID_SHOOT].duration_timers < 2 * FPS && player.learned_skills[SKILL_RAPID_SHOOT].duration_timers%6 == 0) {
+        spawn_rune_circle(player.x, player.y, 50, al_map_rgba(200, 100, 255, 200));
+        spawn_projectile(10,player.x, player.y, player.learned_skills[SKILL_RAPID_SHOOT].x, player.learned_skills[SKILL_RAPID_SHOOT].y,
+            OWNER_PLAYER, PROJ_TYPE_NONE, 1 + player.magic/2, 30, 30, -1);
+    }
+}
+
 
 /**
  * 更新玩家刀子攻擊的狀態。
@@ -605,6 +750,15 @@ void update_player_skill() {
     }
     if(player.learned_skills[SKILL_REFLECT_BARRIER].duration_timers > 0) {
         using_reflect_barrier();
+    }
+    if(player.learned_skills[SKILL_ELEMENTAL_BLAST].duration_timers > 0){
+        using_elemental_blast();
+    }
+    if(player.learned_skills[SKILL_RAPID_SHOOT].duration_timers > 0) {
+        using_rapid_element_balls();
+    }
+    if(player.learned_skills[SKILL_BIG_HEAL].charge_timers > 0) {
+        using_big_heal();
     }
 
     if(player.mp < player.max_mp - 1 && (int)battle_time%6 == 0 && player.state == STATE_NORMAL) player.mp += 1 * battle_speed_multiplier; // 回復魔力

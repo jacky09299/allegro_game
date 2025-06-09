@@ -7,25 +7,8 @@
 #include "types.h"
 #include <stdio.h>
 #include <stdbool.h>
-/*
-// 靜態旗標，用於追蹤背包是否已經被初始化過
-static bool g_backpack_initialized_once = false;
+#include "escape_gate.h"
 
-void init_backpack(void) {
-     // 只有當背包從未被初始化過時，才執行清空操作
-    if (!g_backpack_initialized_once) {
-        for (int i = 0; i < MAX_BACKPACK_SLOTS; ++i) { //
-            player_backpack[i].quantity = 0; //
-            player_backpack[i].item.id = -1; // 表示空槽位
-        }
-        backpack_item_count = 0; // 背包中還沒有物品
-        g_backpack_initialized_once = true; // 設定旗標，表示已經初始化過
-        printf("Backpack initialized for the first time.\n"); //
-    } else {
-        printf("Backpack already initialized. Skipping reset.\n");
-    }
-} 
-*/
 void render_backpack(void) {
     al_clear_to_color(al_map_rgb(50, 50, 70));
     if (font) {
@@ -40,7 +23,7 @@ void render_backpack(void) {
         int items_per_row = 5;
         float slot_size = 200;
         float padding = 20;
-        float start_x = 350;
+        float start_x = 200;
         float start_y = 300;
         float text_offset_y = slot_size - 25; // 文字在格子底部的位置
 
@@ -89,10 +72,96 @@ void render_backpack(void) {
     }
 }
 
+// 幫助函式：從背包陣列中移除一個物品
+static void remove_item_from_backpack(int index) {
+    if (index < 0 || index >= backpack_item_count) return;
+
+    // 將後續物品往前移動以填補空位
+    for (int i = index; i < backpack_item_count - 1; ++i) {
+        player_backpack[i] = player_backpack[i + 1];
+    }
+    backpack_item_count--;
+
+    // (可選) 清理最後一個現在未使用的槽位
+    player_backpack[backpack_item_count].quantity = 0;
+    player_backpack[backpack_item_count].item.id = -1;
+}
+
 void handle_backpack_input(ALLEGRO_EVENT ev) {
     if (ev.type == ALLEGRO_EVENT_KEY_DOWN) {
         if (ev.keyboard.keycode == ALLEGRO_KEY_ESCAPE) {
             game_phase = GROWTH;
+        }
+        else if (ev.keyboard.keycode == ALLEGRO_KEY_E && game_phase != BATTLE) {
+            game_phase = EQUIPMENT;
+        }
+    } else if (ev.type == ALLEGRO_EVENT_MOUSE_BUTTON_DOWN) {
+        if (ev.mouse.button == 1) { // 處理左鍵點擊
+            // 複製渲染時的佈局邏輯來找到被點擊的物品
+            int items_per_row = 5;
+            float slot_size = 200;
+            float padding = 20;
+            float start_x = 200;
+            float start_y = 300;
+
+            for (int i = 0; i < backpack_item_count; ++i) {
+                int row = i / items_per_row;
+                int col = i % items_per_row;
+                float current_x = start_x + col * (slot_size + padding);
+                float current_y = start_y + row * (slot_size + padding);
+
+                // 檢查點擊是否在此物品格的範圍內
+                if (ev.mouse.x >= current_x && ev.mouse.x <= current_x + slot_size &&
+                    ev.mouse.y >= current_y && ev.mouse.y <= current_y + slot_size) {
+                    
+                    int item_id = player_backpack[i].item.id;
+                    bool item_was_used = true; // 預設物品會被使用
+
+                    // 根據物品ID應用效果
+                    switch (item_id) {
+                        case 1001: // 回復藥水
+                            if (player.hp >= player.max_hp) {
+                                player.max_hp += 10;
+                            } else {
+                                player.hp = player.max_hp; // 完全回復生命值
+                            }
+                            break;
+                        case 1002: // 力量提升
+                            player.strength += 1;
+                            break;
+                        case 1003: // 魔力提升
+                            if (player.mp >= player.max_mp) {
+                                player.max_mp += 5;
+                                player.magic += 1;
+                            } else {
+                                player.mp = player.max_mp; // 完全回復魔力值
+                                player.magic += 1;
+                            }
+                            break;
+                        case 1004: // 速度提升
+                            player.max_speed += 0.1;
+                            break;
+                        case 1005: // 指南針
+                            show_compass = true;
+                            break;
+                        default:
+                            item_was_used = false; // 此物品沒有定義用途
+                            break;
+                    }
+
+                    // 如果物品被成功使用，則減少其數量
+                    if (item_was_used) {
+                        player_backpack[i].quantity--;
+                        printf("已使用 %s。剩餘數量: %d\n", player_backpack[i].item.name, player_backpack[i].quantity);
+
+                        // 如果數量歸零，則從背包中移除
+                        if (player_backpack[i].quantity <= 0) {
+                            remove_item_from_backpack(i);
+                            break; // 退出循環，因為陣列已被修改
+                        }
+                    }
+                }
+            }
         }
     }
 }

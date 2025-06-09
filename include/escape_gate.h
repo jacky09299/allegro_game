@@ -3,6 +3,8 @@
 
 #include <allegro5/allegro_font.h>
 
+bool show_compass;
+
 void init_escape_gate();
 void update_escape_gate();
 void render_escape_gate(ALLEGRO_FONT* font);

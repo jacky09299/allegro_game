@@ -84,6 +84,15 @@ void init_lottery(void) {
         fprintf(stderr, "Failed to load lottery item image: %s\n", lottery_prize_pool[3].image_path);
     }
 
+    // 物品5
+    lottery_prize_pool[4].id = 1005; // 自定義ID
+    strcpy(lottery_prize_pool[4].name, "指南針");
+    lottery_prize_pool[4].image_path = "assets/image/item5.png"; // 使用您提供的圖片名稱
+    lottery_prize_pool[4].image = al_load_bitmap(lottery_prize_pool[4].image_path);
+    if (!lottery_prize_pool[4].image) {
+        fprintf(stderr, "Failed to load lottery item image: %s\n", lottery_prize_pool[4].image_path);
+    }
+
     // 初始化抽獎按鈕 (UI Button)
     draw_button_ui.x = 650;
     draw_button_ui.y = 450;
@@ -140,7 +149,7 @@ void render_lottery(void) {
         float img_h = al_get_bitmap_height(last_drawn_item.image);
         float display_scale = 0.7f;
         float disp_x = 750 - (img_w * display_scale / 2);
-        float disp_y = 250 - (img_h * display_scale / 2);
+        float disp_y = 270 - (img_h * display_scale / 2);
 
         al_draw_scaled_bitmap(last_drawn_item.image,
                               0, 0, img_w, img_h,

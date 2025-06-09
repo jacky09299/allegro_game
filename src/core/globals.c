@@ -26,7 +26,7 @@ GamePhase game_phase;
 Button menu_buttons[3]; 
 Button growth_buttons[MAX_GROWTH_BUTTONS]; 
 
-int current_day = 0;
+int current_day = 1;
 int day_time = 1;
 double battle_time;
 

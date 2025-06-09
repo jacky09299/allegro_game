@@ -172,7 +172,7 @@ void init_minigame1(void) {
     minigame_buttons[4].is_hovered = false;
 
     minigame_buttons[5] = (Button){center_x, main_action_buttons_y, button_width, button_height, "採收", MINIGAME1, al_map_rgb(200, 150, 50), al_map_rgb(230, 180, 80), al_map_rgb(255, 255, 255), false};
-    flower[0].id = 1003; // 自定義ID
+    flower[0].id = 1006; // 自定義ID
     //lottery.sprite = load_bitmap_once();
     strcpy(flower[0].name, "花");
     flower[0].image_path = "assets/image/flower.png"; // 使用您提供的圖片名稱
@@ -182,7 +182,7 @@ void init_minigame1(void) {
         // 可以載入一個預設的"圖片遺失"圖片
     }
 
-    flower[1].id = 1004; // 自定義ID
+    flower[1].id = 1007; // 自定義ID
     //lottery.sprite = load_bitmap_once();
     strcpy(flower[1].name, "惡魔花");
     flower[1].image_path = "assets/image/devil_flower.png"; // 使用您提供的圖片名稱

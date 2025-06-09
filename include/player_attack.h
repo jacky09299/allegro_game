@@ -8,11 +8,14 @@
 // Function declarations for player attacks
 int player_is_hit(void);
 void player_use_perfect_defense(void);
+void player_use_elemantal_counter(void); 
 void player_defense_start(void);
 void player_defense_end();
 void player_perform_normal_attack(void);
 void player_use_lightning_bolt(void);
 void player_use_heal(void);
+void player_start_big_heal(void);
+void player_end_big_heal(void);
 void update_player_knife(void);
 void init_player_knife(void);
 void update_player_skill(void);
@@ -23,8 +26,11 @@ void player_use_arcane_orb(void);
 void player_use_rune_implosion(void);
 void player_use_element_ball(void);
 void player_use_reflect_barrier(void);
+void player_use_elemental_blast(void);
+void player_use_rapid_element_balls(void);
 void player_start_focus(void);
 void player_end_focus(void);
+void player_use_elemental_scatter(void);
 
 
 // New function to render the player's knife

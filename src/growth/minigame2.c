@@ -24,11 +24,14 @@ static const float HAPPINESS_FACTOR = 0.5f;
 static const float PARENT_FACTOR = 0.9f;
 static const float ASEXUAL_PENALTY = 0.9f;
 static double BREEDING_DURATION = 5.0; // 繁殖耗時
-static const size_t MAX_POPULATION_LIMIT = 2000;
 
 // --- 動態陣列儲存族群 (Population) ---
-static Person population[2000];
-static size_t pop_count = 0;
+Person population[MAX_POPULATION_LIMIT];
+size_t pop_count = 0;
+int next_id = 0;
+float temp_atk = 0.0f;
+float leader_point_x = 800.0f, leader_point_y = 800.0f;
+
 
 // --- 繁殖佇列 (Breeding Queue) ---
 static int breeding_queue[2000];
@@ -39,9 +42,7 @@ static double current_breeding_start_time = 0.0;
 static int current_breeding_parent_id = -1;
 
 // --- Minigame 全域變數 ---
-static int next_id = 0;
 static int last_clicked_id = -1; // 用於顯示最後點擊的個體資訊
-static float temp_atk = 0.0f;
 static double game_time = 0.0, last_update = 0.0;
 
 static bool is_dragging_selection_circle = false;
@@ -54,7 +55,6 @@ static float current_mouse_drag_x = 0, current_mouse_drag_y = 0;
 #define GRID_WIDTH 15
 #define GRID_HEIGHT 9
 
-static float leader_point_x = 800.0f, leader_point_y = 800.0f;
 static double last_leader_point_change_time = 0.0;
 
 // 為了效能，我們用一個大陣列模擬動態列表，而不是真的用鏈結串列
@@ -608,7 +608,7 @@ void render_minigame2(void) {
 
 
     if (font) {
-        al_draw_textf(font, al_map_rgb(255,255,255), 10, 10, 0, "人口數: %I64u/%I64u (成人:%I64u, 兒童:%I64u)", pop_count, MAX_POPULATION_LIMIT, adults, children);
+        al_draw_textf(font, al_map_rgb(255,255,255), 10, 10, 0, "人口數: %I64u/%d (成人:%I64u, 兒童:%I64u)", pop_count, MAX_POPULATION_LIMIT, adults, children);
         al_draw_textf(font, al_map_rgb(255,255,255), 10, 30, 0, "增長戰鬥力: %d", (int)temp_atk);
         
         

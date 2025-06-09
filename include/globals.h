@@ -52,4 +52,20 @@ extern LotteryItemDefinition lottery_prize_pool[MAX_LOTTERY_PRIZES]; // 抽獎�
 extern BackpackSlot player_backpack[MAX_BACKPACK_SLOTS];             // 玩家背包
 extern int backpack_item_count;
 
+extern MinigameFlowerPlant flower_plant;
+extern bool seed_planted;
+
+#define MAX_POPULATION_LIMIT 2000
+extern Person population[MAX_POPULATION_LIMIT];
+extern size_t pop_count;
+extern int next_id;
+extern float temp_atk;
+extern float leader_point_x, leader_point_y;
+
+extern int count_play_minigame[3]; // 用於記錄每天養成次數
+
+#define MAX_EQUIPPED_SKILLS 5
+extern SkillIdentifier player_skill_group[MAX_EQUIPPED_SKILLS];
+
+
 #endif // GLOBALS_H

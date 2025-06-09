@@ -4,12 +4,6 @@
 #include <allegro5/allegro.h>
 #include "types.h" // Added for SkillIdentifier
 
-#define MAX_EQUIPPED_SKILLS 5 // Define here if not already globally available
-
-// Declare player_skill_group as extern so it can be accessed from other files
-// It will be defined in player_skill_select.c
-extern SkillIdentifier player_skill_group[MAX_EQUIPPED_SKILLS];
-
 // Functions for the equipment screen
 void init_player_skill_select();
 void handle_player_skill_select_input(ALLEGRO_EVENT* ev);

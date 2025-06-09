@@ -13,7 +13,7 @@
 #include "lottery.h"
 #include "backpack.h"
 #include "player_skill_select.h" // For player skill management
-static int count_play_minigame[3] = {0};
+int count_play_minigame[3] = {0};
 
 /**
  * 初始化主選單的按鈕。

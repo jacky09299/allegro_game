@@ -80,9 +80,9 @@ static float g_last_calculated_singing_threshold = MIN_ABSOLUTE_SINGING_RMS_FLOO
 
 static int local_last_processed_idx = -1;
 
-static MinigameFlowerPlant flower_plant;
+MinigameFlowerPlant flower_plant;
 static Button minigame_buttons[NUM_MINIGAME1_BUTTONS];
-static bool seed_planted = false;
+bool seed_planted = false;
 static bool is_singing = false;
 static const int songs_to_flower = 8;
 static bool minigame_srand_called = false;

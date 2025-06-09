@@ -6,13 +6,6 @@
 
 #define NUM_MINIGAME1_BUTTONS 6 // Plant Seed, Start, Restart, Finish, Exit, Harvest
 
-// Structure to hold the state of the flower in the minigame
-typedef struct {
-    int songs_sung;
-    int growth_stage; // 0: seed, 1-7: growing stages, 8: flowered
-    int which_flower;
-} MinigameFlowerPlant;
-
 // 初始化、畫面渲染、輸入處理、更新函式宣告
 void init_minigame1(void);
 void render_minigame1(void);

@@ -62,7 +62,7 @@ double theme_bgm_pos[THEME_BGM_COUNT] = {0.0};
 // 記錄當前正在播放的音樂類型 (0: 戰鬥, 1: 主題, -1: 無)
 int current_bgm_type = -1;
 
-#define VIDEO_FRAME_COUNT 240
+#define VIDEO_FRAME_COUNT 238
 #define VIDEO_FPS 30.0
 ALLEGRO_BITMAP* video_frames[VIDEO_FRAME_COUNT];
 
@@ -106,7 +106,7 @@ void play_intro_video_from_frames() {
     ALLEGRO_BITMAP* current_frame = NULL;
 
     // 直接進入播放迴圈
-    for (int i = 0; i < VIDEO_FRAME_COUNT; i+=2) {
+    for (int i = 0; i < VIDEO_FRAME_COUNT; i+=3) {
         double frame_start_time = al_get_time();
 
         // 處理事件，允許用戶在播放時關閉視窗或按 ESC 跳過

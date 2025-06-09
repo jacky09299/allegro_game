@@ -55,9 +55,9 @@ const char* skill_icon_filenames[MAX_PLAYER_SKILLS] = {
     NULL,
     "assets/image/skill1.png", "assets/image/skill2.png", "assets/image/skill3.png", // 3
     "assets/image/skill4.png", "assets/image/skill5.png", "assets/image/skill6.png", // 6
-    "assets/image/skill7.png", "assets/image/skill8.png", "assets/image/skill10.png", // 9
-    "assets/image/skill1.png", "assets/image/skill1.png", "assets/image/skill1.png", // 12
-    "assets/image/skill1.png", "assets/image/skill1.png", "assets/image/skill9.png" 
+    "assets/image/skill7.png", "assets/image/skill8.png", "assets/image/skill9.png", // 9
+    "assets/image/skill10.png", "assets/image/skill11.png", "assets/image/skill12.png", // 12
+    "assets/image/skill13.png", "assets/image/skill14.png", "assets/image/skill15.png" 
     
 };
 

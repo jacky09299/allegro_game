@@ -48,7 +48,7 @@ void update_tank_ai(Boss* b) {
         int r = 145; //調整技能大小範圍
         
         spawn_warning_circle(b->x +cos(angle_to_player) * r, b->y +sin(angle_to_player) * r, r, 
-                            al_map_rgba(200, 200, 150, 255) , 1 * FPS);
+                            al_map_rgb(160, 82, 45), 1 * FPS);
         //al_draw_filled_circle(b->x +cos(angle_to_player) * r, b->y +sin(angle_to_player) * r, r, al_map_rgba(150, 200, 0, 250));
         //al_map_rgb(255, 100, 0)
         // 3. 判斷玩家是否在範圍內
@@ -64,6 +64,9 @@ void update_tank_ai(Boss* b) {
                 float tolDamage = 2.5f * damage_dealt + player.max_hp * 0.05f;
                 snprintf(dmg_text, sizeof(dmg_text), "%.0f", tolDamage); // 無小數位，%.1f 顯示1位小數也可
                 spawn_floating_text(player.x + 15, player.y - 25, dmg_text, al_map_rgba(255, 0, 0, 250));
+                // 暈眩效果
+                player.effect_timers[STATE_STUN] = 2 * FPS;
+                spawn_floating_text(player.x + 15, player.y - 25, "擊暈", al_map_rgba(200, 100, 255, 250));
             }   
         }
         b->speed = normal_spead;
@@ -100,6 +103,8 @@ void update_tank_ai(Boss* b) {
 
             b->learned_skills[BOSS_SKILL_2].cooldown_timers = 15 * FPS;
             // TODO: 添加暈眩與特效
+            player.effect_timers[STATE_STUN] = 1 * FPS;
+            spawn_floating_text(player.x + 15, player.y - 25, "擊暈", al_map_rgba(200, 100, 255, 250));
         }
 
         b->current_ability_in_use = BOSS_ABILITY_MELEE_PRIMARY;
@@ -109,7 +114,7 @@ void update_tank_ai(Boss* b) {
     if (b->learned_skills[BOSS_RANGE_PRIMARY].cooldown_timers  <= 0 && dist > 120
         && b->current_ability_in_use == BOSS_ABILITY_MELEE_PRIMARY
     ) {
-        spawn_projectile(b->x, b->y, player.x, player.y,  //發射巨石
+        spawn_projectile(30, b->x, b->y, player.x, player.y,  //發射巨石
                         OWNER_BOSS, PROJ_TYPE_BIG_EARTHBALL, current_ranged_special_damage * 2,
                         BOSS_RANGED_SPECIAL_PROJECTILE_BASE_SPEED * 0.4f, BOSS_RANGED_SPECIAL_PROJECTILE_BASE_LIFESPAN * 0.75f, b->id);
         // TODO: 停頓?
@@ -139,8 +144,8 @@ void update_skillful_ai(Boss* b) {
         b->learned_skills[BOSS_SKILL_1].cooldown_timers  = 0.0f;
     }
     if (b->learned_skills[BOSS_SKILL_1].variable_1 > 0 && b->learned_skills[BOSS_SKILL_1].cooldown_timers <= 0) {
-        spawn_projectile(b->x, b->y, player.x, player.y,  //發射咒彈
-                        OWNER_BOSS, b->ranged_special_projectile_type, current_ranged_special_damage,
+        spawn_projectile(-1, b->x, b->y, player.x, player.y,  //發射咒彈
+                        OWNER_BOSS, PROJ_TYPE_ICE, current_ranged_special_damage,
                         BOSS_RANGED_SPECIAL_PROJECTILE_BASE_SPEED * 1.5f, BOSS_RANGED_SPECIAL_PROJECTILE_BASE_LIFESPAN, b->id);
         b->learned_skills[BOSS_SKILL_1].variable_1--;
         if(b->learned_skills[BOSS_SKILL_1].variable_1 == 0) b->learned_skills[BOSS_SKILL_1].cooldown_timers  = 5 * FPS;
@@ -204,8 +209,8 @@ void update_skillful_ai(Boss* b) {
     
     // 遠程攻擊: 咒靈彈幕(慢速)
     if (b->learned_skills[BOSS_RANGE_PRIMARY].cooldown_timers <= 0 ) {
-        spawn_projectile(b->x, b->y, player.x, player.y,  //發射咒彈
-                        OWNER_BOSS, b->ranged_special_projectile_type, current_ranged_special_damage,
+        spawn_projectile(-1, b->x, b->y, player.x, player.y,  //發射咒彈
+                        OWNER_BOSS, PROJ_TYPE_ICE, current_ranged_special_damage,
                         BOSS_RANGED_SPECIAL_PROJECTILE_BASE_SPEED * 0.5f, BOSS_RANGED_SPECIAL_PROJECTILE_BASE_LIFESPAN, b->id);
         b->learned_skills[BOSS_RANGE_PRIMARY].cooldown_timers   = 0.5 * FPS;
     }

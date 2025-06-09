@@ -18,7 +18,7 @@
 
 bool is_backpack_open = false; // 是否打開背包
 bool last_key_b_state = false;
-bool is_pause = false; // 是否打開背包
+bool is_pause = false; // 是否暫停
 bool last_key_esc_state = false;
 
 void start_new_battle(void) {
@@ -34,6 +34,7 @@ void start_new_battle(void) {
     init_projectiles();   
     init_escape_gate();  
     init_floor(); 
+    init_player();
 
     // 初始化攝影機位置
     camera_x = player.x - SCREEN_WIDTH / 2.0f;
@@ -98,7 +99,7 @@ void manage_battle_state(void) {
 void battle_manager_handle_input(ALLEGRO_EVENT* ev, bool keys[]) {
     if (keys[ALLEGRO_KEY_B] && !last_key_b_state){
         is_backpack_open = !is_backpack_open; // 切換背包狀態
-        init_backpack(); // 初始化背包內容
+        //init_backpack(); // 初始化背包內容
     }
     if (keys[ALLEGRO_KEY_ESCAPE] && !last_key_esc_state && !is_backpack_open) {
         is_pause = !is_pause; 
@@ -178,30 +179,7 @@ void battle_manager_render(void) {
     }
 
     // 繪製投射物
-    for (int i = 0; i < MAX_PROJECTILES; ++i) {
-        if (projectiles[i].active) {
-            float proj_screen_x = projectiles[i].x - camera_x;
-            float proj_screen_y = projectiles[i].y - camera_y;
-            ALLEGRO_COLOR proj_color;
-            switch (projectiles[i].type) {
-                case PROJ_TYPE_WATER: proj_color = al_map_rgb(0, 150, 255); break;
-                case PROJ_TYPE_FIRE: proj_color = al_map_rgb(255, 100, 0); break;
-                case PROJ_TYPE_ICE: proj_color = al_map_rgb(150, 255, 255); break;
-                case PROJ_TYPE_PLAYER_FIREBALL: proj_color = al_map_rgb(255, 50, 50); break;
-                case PROJ_TYPE_GENERIC:
-                case PROJ_TYPE_BIG_EARTHBALL: proj_color = al_map_rgb(255, 255, 255); break; //need change
-                default: proj_color = al_map_rgb(200, 200, 200); break;
-            }
-            al_draw_filled_circle(proj_screen_x, proj_screen_y, PROJECTILE_RADIUS, proj_color); //??? quit strange 
-            if (projectiles[i].type == PROJ_TYPE_ICE) {
-                al_draw_circle(proj_screen_x, proj_screen_y, PROJECTILE_RADIUS + 2, al_map_rgb(255, 255, 255), 1.0f);
-            } else if (projectiles[i].type == PROJ_TYPE_PLAYER_FIREBALL || projectiles[i].type == PROJ_TYPE_FIRE) {
-                al_draw_circle(proj_screen_x, proj_screen_y, PROJECTILE_RADIUS + 1, al_map_rgb(255, 200, 0), 1.0f);
-            } else if (projectiles[i].type == PROJ_TYPE_BIG_EARTHBALL) {
-                al_draw_filled_circle(proj_screen_x, proj_screen_y, PROJECTILE_RADIUS + 20, al_map_rgb(255, 200, 50));
-            }
-        }
-    }
+    render_active_projectiles();
 
     // 繪製玩家近戰攻擊
     player_attack_render_knife(&player_knife, camera_x, camera_y);

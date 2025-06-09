@@ -630,6 +630,58 @@ void render_minigame2(void) {
             }
         }
     }
+
+    if (last_clicked_id != -1) {
+        int idx = find_by_id(last_clicked_id);
+        if (idx != -1) {
+            const Person *p = &population[idx];
+            al_draw_textf(font, al_map_rgb(255,255,0), SCREEN_WIDTH - 350, 10, 0, "姓名: %s", p->name);
+            al_draw_textf(font, al_map_rgb(255,255,0), SCREEN_WIDTH - 350, 40, 0, "品質: %.2f", p->quality);
+            al_draw_textf(font, al_map_rgb(255,255,0), SCREEN_WIDTH - 350, 70, 0, "幸福感: %.2f", p->happiness);
+        }
+    }
+
+
+    // --- 品質顏色條 ---
+    const int bar_width = 28;
+    const int bar_height = 240;
+    const int bar_x = SCREEN_WIDTH - bar_width - 20;
+    const int bar_y = 60;
+    for (int i = 0; i < bar_height; ++i) {
+        float t = (float)i / (bar_height - 1); // 0~1
+        float quality = MIN_QUALITY + t * (MAX_QUALITY - MIN_QUALITY);
+
+        float q_norm = (quality - MIN_QUALITY) / (MAX_QUALITY - MIN_QUALITY);
+        float hue = 0.83f - 0.83f * q_norm;
+        float sat = 0.7f;
+        float val = 0.3f + 0.7f * q_norm;
+
+        float r_f = 0, g_f = 0, b_f = 0;
+        float h = hue * 6.0f;
+        int hi = (int)h;
+        float f = h - hi;
+        float p = val * (1.0f - sat);
+        float qv = val * (1.0f - sat * f);
+        float t_ = val * (1.0f - sat * (1.0f - f));
+        switch (hi % 6) {
+            case 0: r_f = val; g_f = t_; b_f = p; break;
+            case 1: r_f = qv; g_f = val; b_f = p; break;
+            case 2: r_f = p; g_f = val; b_f = t_; break;
+            case 3: r_f = p; g_f = qv; b_f = val; break;
+            case 4: r_f = t_; g_f = p; b_f = val; break;
+            case 5: r_f = val; g_f = p; b_f = qv; break;
+        }
+        ALLEGRO_COLOR c = al_map_rgb_f(r_f, g_f, b_f);
+        al_draw_filled_rectangle(bar_x, bar_y + bar_height - 1 - i, bar_x + bar_width, bar_y + bar_height - i, c);
+    }
+    // 邊框
+    al_draw_rectangle(bar_x, bar_y, bar_x + bar_width, bar_y + bar_height, al_map_rgb(255,255,255), 2.0f);
+
+    // 標示最大/最小品質值
+    al_draw_textf(font, al_map_rgb(255,255,255), bar_x - 8, bar_y - 8, ALLEGRO_ALIGN_RIGHT, "%.1f", MAX_QUALITY);
+    al_draw_textf(font, al_map_rgb(255,255,255), bar_x - 8, bar_y + bar_height - 16, ALLEGRO_ALIGN_RIGHT, "%.1f", MIN_QUALITY);
+    al_draw_text(font, al_map_rgb(255,255,255), bar_x - 20, bar_y + bar_height + 8, 0, "品質");
+    
 }
 
 void handle_minigame2_input(ALLEGRO_EVENT ev) {

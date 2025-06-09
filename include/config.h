@@ -26,21 +26,21 @@
 #define BOSS_POOL_SIZE 3                    // Boss 戰鬥池
 
 // 玩家技能常數
-#define PLAYER_WATER_PROJECTILE_DAMAGE 25   // 水彈基礎傷害
+#define PLAYER_WATER_PROJECTILE_DAMAGE 5   // 水彈基礎傷害
 #define PLAYER_WATER_PROJECTILE_SPEED 10.0f // 水彈飛行速度
-#define PLAYER_WATER_PROJECTILE_LIFESPAN (FPS * 3) // 冰錐持續時間 (幀)
+#define PLAYER_WATER_PROJECTILE_LIFESPAN (FPS * 5) // 水彈持續時間 (幀)
 #define PLAYER_WATER_SKILL_COOLDOWN (FPS * 5)  // 水彈技能冷卻時間 (幀)
-#define PLAYER_ICE_PROJECTILE_DAMAGE 35     // 冰錐基礎傷害
-#define PLAYER_ICE_PROJECTILE_SPEED 8.0f    // 冰錐飛行速度
+#define PLAYER_ICE_PROJECTILE_DAMAGE 7     // 冰錐基礎傷害
+#define PLAYER_ICE_PROJECTILE_SPEED 12.0f    // 冰錐飛行速度
 #define PLAYER_ICE_PROJECTILE_LIFESPAN (FPS * 3) // 冰錐持續時間 (幀)
 #define PLAYER_ICE_SKILL_COOLDOWN (FPS * 7)    // 冰錐技能冷卻時間 (幀)
-#define PLAYER_LIGHTNING_DAMAGE 50          // 閃電鏈基礎傷害
+#define PLAYER_LIGHTNING_DAMAGE 25          // 閃電鏈基礎傷害
 #define PLAYER_LIGHTNING_RANGE 150.0f       // 閃電鏈作用範圍
 #define PLAYER_LIGHTNING_SKILL_COOLDOWN (FPS * 10) // 閃電鏈技能冷卻時間 (幀)
 #define PLAYER_HEAL_AMOUNT 30               // 治療術基礎治療量
 #define PLAYER_HEAL_SKILL_COOLDOWN (FPS * 15)  // 治療術技能冷卻時間 (幀)
-#define PLAYER_FIREBALL_DAMAGE 40           // 火球術基礎傷害
-#define PLAYER_FIREBALL_SPEED 12.0f         // 火球術飛行速度
+#define PLAYER_FIREBALL_DAMAGE 10           // 火球術基礎傷害
+#define PLAYER_FIREBALL_SPEED 8.0f         // 火球術飛行速度
 #define PLAYER_FIREBALL_LIFESPAN (FPS * 2.5) // 火球術持續時間 (幀)
 #define PLAYER_FIREBALL_SKILL_COOLDOWN (FPS * 6) // 火球術技能冷卻時間 (幀)
 

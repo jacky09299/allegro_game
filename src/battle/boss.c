@@ -133,8 +133,8 @@ void init_bosses_by_archetype() {
     b->v_y = 0.0f;
     b->facing_angle = M_PI / 2.0f;
     b->is_alive = true;
-    for(int i =0;i<MAX_BOSS_SKILLS;i++){
-        b->learned_skills[i].cooldown_timers = 0;
+    for(int i =MAX_PLAYER_SKILLS;i<MAX_SKILLS;i++){
+        b->learned_skills[i].cooldown_timers = 1 * FPS;
         b->learned_skills[i].duration_timers = 0;
         b->learned_skills[i].variable_1 = 0;
     }

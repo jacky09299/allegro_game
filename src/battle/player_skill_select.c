@@ -18,7 +18,7 @@
 // --- UI Layout Definitions ---
 #define SKILL_LIBRARY_ROWS 3
 #define SKILL_LIBRARY_COLS 5
-#define NUM_DISPLAY_SKILLS 6
+#define NUM_DISPLAY_SKILLS 10
 
 // Positions and sizes
 #define EQUIPPED_SLOT_X 150
@@ -28,8 +28,9 @@
 
 #define LIBRARY_GRID_X 150
 #define LIBRARY_GRID_Y 300
-#define LIBRARY_SLOT_SIZE 100
+#define LIBRARY_SLOT_SIZE 150
 #define LIBRARY_SLOT_PADDING 10
+#define TEXT_HEIGHT 30
 
 #define PLAYER_PREVIEW_BOX_X (SCREEN_WIDTH - 350)
 #define PLAYER_PREVIEW_BOX_Y 100
@@ -53,8 +54,15 @@ static bool voronoi_needs_update = true;
 const char* skill_icon_filenames[MAX_PLAYER_SKILLS] = {
     NULL,
     "assets/image/skill1.png", "assets/image/skill2.png", "assets/image/skill3.png",
-    "assets/image/skill4.png", "assets/image/skill5.png", "assets/image/skill6.png"
+    "assets/image/skill4.png", "assets/image/skill5.png", "assets/image/skill6.png",
+    "assets/image/skill7.png", "assets/image/skill8.png", "assets/image/skill9.png", 
+    "assets/image/skill9.png"
 };
+
+const char* skill_names[] = {
+    "無", "閃電鏈", "治癒", "元素彈",
+    "元素衝刺", "蓄力槍", "集中", "水晶浮球", "符文爆破", "完美防禦" , "反轉結界"
+    };
 
 static void generate_voronoi_overlay();
 
@@ -78,12 +86,18 @@ void init_player_skill_select() {
         }
     }
 
-    available_library_skills[0] = SKILL_WATER_ATTACK;
-    available_library_skills[1] = SKILL_ICE_SHARD;
-    available_library_skills[2] = SKILL_LIGHTNING_BOLT;
-    available_library_skills[3] = SKILL_HEAL;
-    available_library_skills[4] = SKILL_FIREBALL;
-    available_library_skills[5] = SKILL_PREFECT_DEFENSE;
+    available_library_skills[0] = SKILL_LIGHTNING_BOLT;
+    available_library_skills[1] = SKILL_HEAL;
+    available_library_skills[2] = SKILL_ELEMENT_BALL;
+    available_library_skills[3] = SKILL_ELEMENT_DASH; //元素衝刺
+    available_library_skills[4] = SKILL_CHARGE_BEAM; //充能元素槍
+    available_library_skills[5] = SKILL_FOCUS; //集中
+    available_library_skills[6] = SKILL_ARCANE_ORB; //水晶浮球四射
+    available_library_skills[7] = SKILL_RUNE_IMPLOSION; //符文爆破
+    available_library_skills[8] = SKILL_REFLECT_BARRIER; //反轉結界
+    available_library_skills[9] = SKILL_PREFECT_DEFENSE; //完美防禦
+    
+
 
     is_dragging = false;
     dragged_skill = SKILL_NONE;
@@ -133,7 +147,7 @@ void handle_player_skill_select_input(ALLEGRO_EVENT* ev) {
                 int row = i / SKILL_LIBRARY_COLS;
                 int col = i % SKILL_LIBRARY_COLS;
                 float cell_x = LIBRARY_GRID_X + col * (LIBRARY_SLOT_SIZE + LIBRARY_SLOT_PADDING);
-                float cell_y = LIBRARY_GRID_Y + row * (LIBRARY_SLOT_SIZE + LIBRARY_SLOT_PADDING);
+                float cell_y = LIBRARY_GRID_Y + row * (LIBRARY_SLOT_SIZE + LIBRARY_SLOT_PADDING + TEXT_HEIGHT);
                 if (mouse_x >= cell_x && mouse_x <= cell_x + LIBRARY_SLOT_SIZE && mouse_y >= cell_y && mouse_y <= cell_y + LIBRARY_SLOT_SIZE) {
                     SkillIdentifier clicked_skill_id = available_library_skills[i];
                     if (clicked_skill_id == SKILL_NONE) continue;
@@ -333,6 +347,15 @@ void render_player_skill_select() {
     al_draw_filled_rectangle(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT, al_map_rgba(0, 0, 0, 150));
     ALLEGRO_COLOR slot_color = al_map_rgb(50, 50, 50);
     ALLEGRO_COLOR border_color = al_map_rgb(150, 150, 150);
+    al_draw_text(font, al_map_rgb(255, 255, 0), EQUIPPED_SLOT_X, EQUIPPED_SLOT_Y - TEXT_HEIGHT - 10, 0, "技能組:");
+    al_draw_text(font, al_map_rgb(0, 255, 255), LIBRARY_GRID_X, LIBRARY_GRID_Y - TEXT_HEIGHT - 10, 0, "技能庫:");
+    
+    // --- 操作說明 ---
+    const char* op1 = "左鍵：從技能庫裝備/拖曳技能";
+    const char* op2 = "右鍵：卸載技能 | ESC：返回  ";
+    float op_y = SCREEN_HEIGHT - 3 * TEXT_HEIGHT - 30;
+    al_draw_text(font, al_map_rgb(255,255,255), SCREEN_WIDTH - 20, op_y, ALLEGRO_ALIGN_RIGHT, op1);
+    al_draw_text(font, al_map_rgb(255,255,255), SCREEN_WIDTH - 20, op_y + TEXT_HEIGHT + 5, ALLEGRO_ALIGN_RIGHT, op2);
 
     for (int i = 0; i < MAX_EQUIPPED_SKILLS; ++i) {
         float slot_x = EQUIPPED_SLOT_X + i * (EQUIPPED_SLOT_SIZE + EQUIPPED_SLOT_PADDING);
@@ -349,13 +372,17 @@ void render_player_skill_select() {
         int row = i / SKILL_LIBRARY_COLS;
         int col = i % SKILL_LIBRARY_COLS;
         float cell_x = LIBRARY_GRID_X + col * (LIBRARY_SLOT_SIZE + LIBRARY_SLOT_PADDING);
-        float cell_y = LIBRARY_GRID_Y + row * (LIBRARY_SLOT_SIZE + LIBRARY_SLOT_PADDING);
+        float cell_y = LIBRARY_GRID_Y + row * (LIBRARY_SLOT_SIZE + LIBRARY_SLOT_PADDING + TEXT_HEIGHT);
         al_draw_filled_rectangle(cell_x, cell_y, cell_x + LIBRARY_SLOT_SIZE, cell_y + LIBRARY_SLOT_SIZE, slot_color);
         SkillIdentifier skill_id = available_library_skills[i];
         if (skill_id != SKILL_NONE && skill_bitmaps[skill_id] != NULL) {
             al_draw_scaled_bitmap(skill_bitmaps[skill_id], 0, 0, al_get_bitmap_width(skill_bitmaps[skill_id]), al_get_bitmap_height(skill_bitmaps[skill_id]), cell_x, cell_y, LIBRARY_SLOT_SIZE, LIBRARY_SLOT_SIZE, 0);
         }
         al_draw_rectangle(cell_x, cell_y, cell_x + LIBRARY_SLOT_SIZE, cell_y + LIBRARY_SLOT_SIZE, border_color, 2.0);
+        al_draw_rectangle(cell_x, cell_y + LIBRARY_SLOT_SIZE, cell_x + LIBRARY_SLOT_SIZE, cell_y + LIBRARY_SLOT_SIZE + TEXT_HEIGHT, border_color, 2.0);
+        al_draw_filled_rectangle(cell_x, cell_y + LIBRARY_SLOT_SIZE, cell_x + LIBRARY_SLOT_SIZE, cell_y + LIBRARY_SLOT_SIZE + TEXT_HEIGHT, slot_color);
+        al_draw_text(font, al_map_rgb(255, 255, 255), cell_x + LIBRARY_SLOT_SIZE / 2.0, cell_y + LIBRARY_SLOT_SIZE + (TEXT_HEIGHT - al_get_font_line_height(font)) / 2.0, ALLEGRO_ALIGN_CENTER, skill_names[skill_id]);
+
     }
 
     if (is_dragging && dragged_skill != SKILL_NONE && skill_bitmaps[dragged_skill] != NULL) {
@@ -393,26 +420,3 @@ void update_player_skill_select() {
     // 目前沒有需要每幀更新的邏輯
 }
 
-
-static int selected_skill_index = 0;
-void player_switch_skill() {
-    int start = selected_skill_index;
-    int idx = (start + 1) % MAX_PLAYER_SKILLS;
-    while (idx != start) {
-        if (player.learned_skills[idx].type != SKILL_NONE) {
-            selected_skill_index = idx;
-            return;
-        }
-        idx = (idx + 1) % MAX_PLAYER_SKILLS;
-    }
-}
-void player_use_selected_skill() {
-    switch (player.learned_skills[selected_skill_index].type) {
-        case SKILL_WATER_ATTACK: player_use_water_attack(); break;
-        case SKILL_ICE_SHARD: player_use_ice_shard(); break;
-        case SKILL_LIGHTNING_BOLT: player_use_lightning_bolt(); break;
-        case SKILL_HEAL: player_use_heal(); break;
-        case SKILL_FIREBALL: player_use_fireball(); break;
-        default: break;
-    }
-}

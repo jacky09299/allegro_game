@@ -7,7 +7,7 @@
 #include "types.h"
 #include <stdio.h>
 #include <stdbool.h>
-
+/*
 // 靜態旗標，用於追蹤背包是否已經被初始化過
 static bool g_backpack_initialized_once = false;
 
@@ -25,23 +25,23 @@ void init_backpack(void) {
         printf("Backpack already initialized. Skipping reset.\n");
     }
 } 
-
+*/
 void render_backpack(void) {
     al_clear_to_color(al_map_rgb(50, 50, 70));
     if (font) {
-        al_draw_text(font, al_map_rgb(220, 220, 200), 400, 30, ALLEGRO_ALIGN_CENTRE, "我的背包");
+        al_draw_text(font, al_map_rgb(220, 220, 200), 750, 30, ALLEGRO_ALIGN_CENTRE, "我的背包");
     }
 
     if (backpack_item_count == 0) {
         if (font) {
-            al_draw_text(font, al_map_rgb(180, 180, 180), 400, 300, ALLEGRO_ALIGN_CENTRE, "背包是空的...");
+            al_draw_text(font, al_map_rgb(180, 180, 180), 750, 300, ALLEGRO_ALIGN_CENTRE, "背包是空的...");
         }
     } else {
         int items_per_row = 5;
-        float slot_size = 100;
+        float slot_size = 200;
         float padding = 20;
-        float start_x = 50;
-        float start_y = 100;
+        float start_x = 350;
+        float start_y = 300;
         float text_offset_y = slot_size - 25; // 文字在格子底部的位置
 
         for (int i = 0; i < backpack_item_count; ++i) {
@@ -85,14 +85,14 @@ void render_backpack(void) {
     }
 
     if (font) {
-        al_draw_text(font, al_map_rgb(180, 180, 180), 10, 570, ALLEGRO_ALIGN_LEFT, "按 ESC 或 B 返回抽獎畫面");
+        al_draw_text(font, al_map_rgb(180, 180, 180), 10, 850, ALLEGRO_ALIGN_LEFT, "按 ESC 返回養成畫面");
     }
 }
 
 void handle_backpack_input(ALLEGRO_EVENT ev) {
     if (ev.type == ALLEGRO_EVENT_KEY_DOWN) {
         if (ev.keyboard.keycode == ALLEGRO_KEY_ESCAPE) {
-            game_phase = LOTTERY;
+            game_phase = GROWTH;
         }
     }
 }

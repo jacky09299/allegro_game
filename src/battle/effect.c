@@ -142,6 +142,126 @@ void draw_claw(Effect *e) {
 
 }
 
+// 殘影效果
+void spawn_element_dash_trail(float x, float y, ALLEGRO_COLOR color) {
+    for (int i = 0; i < MAX_EFFECTS; ++i) {
+        if (!effects[i].active) {
+            effects[i] = (Effect){
+                .type = EFFECT_DASH_TRAIL,
+                .x = x, .y = y,
+                .timer = 15,
+                .color = color,
+                .active = true
+            };
+            break;
+        }
+    }
+}
+
+void draw_element_dash_trail(Effect* e) {
+    float alpha = (float)e->timer / 15;
+    ALLEGRO_COLOR faded = al_map_rgba_f(e->color.r, e->color.g, e->color.b, alpha);
+    al_draw_filled_circle(e->x - camera_x, e->y - camera_y, 12, faded);
+}
+
+// 蓄力環效果
+void spawn_charge_beam_charge(float x, float y) {
+    for (int i = 0; i < MAX_EFFECTS; ++i) {
+        if (!effects[i].active) {
+            effects[i] = (Effect){
+                .type = EFFECT_CHARGE_BEAM_RING,
+                .x = x, .y = y,
+                .radius = 0,
+                .timer = 30,
+                .active = true
+            };
+            break;
+        }
+    }
+}
+
+void draw_charge_beam_ring(Effect* e) {
+    float progress = 1.0f - (float)e->timer / 30.0f;
+    float radius = 20 + 20 * progress;
+    al_draw_circle(e->x - camera_x, e->y - camera_y, radius, al_map_rgba(100, 200, 255, 180), 2.0f);
+}
+
+void spawn_focus_aura(float x, float y) {
+    for (int i = 0; i < MAX_EFFECTS; ++i) {
+        if (!effects[i].active) {
+            effects[i] = (Effect){
+                .type = EFFECT_FOCUS_AURA,
+                .x = x, .y = y,
+                .timer = 60,
+                .active = true
+            };
+            break;
+        }
+    }
+}
+
+void draw_focus_aura(Effect* e) {
+    // float t = (60 - e->timer) / 60.0f;
+    float angle = battle_time * 6;
+    for (int i = 0; i < 6; ++i) {
+        float a = angle + i * ALLEGRO_PI / 3;
+        float dx = cosf(a) * 40, dy = sinf(a) * 40;
+        al_draw_filled_circle(e->x + dx - camera_x, e->y + dy - camera_y, 40, al_map_rgba(100, 255, 100, 150));
+    }
+}
+
+void spawn_orb_summon_glow(float x, float y) {
+    for (int i = 0; i < MAX_EFFECTS; ++i) {
+        if (!effects[i].active) {
+            effects[i] = (Effect){
+                .type = EFFECT_ORB_SUMMON_GLOW,
+                .x = x, .y = y,
+                .timer = 25,
+                .active = true
+            };
+            break;
+        }
+    }
+}
+
+void draw_orb_summon_glow(Effect* e) {
+    float r = 30 + sin(battle_time * 10) * 5;
+    al_draw_circle(e->x - camera_x, e->y - camera_y, r, al_map_rgba(100, 100, 255, 180), 2);
+}
+
+void spawn_rune_circle(float x, float y, int radius, ALLEGRO_COLOR color) {
+    for (int i = 0; i < MAX_EFFECTS; ++i) {
+        if (!effects[i].active) {
+            effects[i] = (Effect){
+                .type = EFFECT_RUNE_CIRCLE,
+                .x = x, .y = y,
+                .timer = 60,
+                .active = true,
+                .radius = radius,
+                .color = color
+            };
+            break;
+        }
+    }
+}
+
+void draw_rune_circle(Effect* e) {
+    float progress = 1.0f - (float)e->timer / 60.0f;
+    float radius = e->radius + 10 * sin(progress * ALLEGRO_PI);
+    al_draw_circle(e->x - camera_x, e->y - camera_y, radius, e->color, 2);
+
+    // 五芒星
+    for (int i = 0; i < 5; ++i) {
+        float angle1 = ALLEGRO_PI * 2 * i / 5;
+        float angle2 = ALLEGRO_PI * 2 * ((i + 2) % 5) / 5;
+        float x1 = e->x + cos(angle1) * radius;
+        float y1 = e->y + sin(angle1) * radius;
+        float x2 = e->x + cos(angle2) * radius;
+        float y2 = e->y + sin(angle2) * radius;
+        al_draw_line(x1 - camera_x, y1 - camera_y, x2 - camera_x, y2 - camera_y, e->color, 1.5f);
+    }
+}
+
 void render_effects_back() {
     for (int i = 0; i < MAX_EFFECTS; ++i) {
         if (!effects[i].active) continue;
@@ -152,7 +272,16 @@ void render_effects_back() {
                 al_draw_text(font, e->color, e->x - camera_x, e->y - camera_y, ALLEGRO_ALIGN_CENTER, e->text);
                 break;
             case EFFECT_WARNING_CIRCLE:
-                al_draw_filled_circle(e->x - camera_x, e->y - camera_y, e->radius, al_map_rgba_f(e->color.r, e->color.g, e->color.b, e->alpha));
+                al_draw_filled_circle(e->x - camera_x, e->y - camera_y, e->radius, e->color);
+                break;
+            case EFFECT_DASH_TRAIL:
+                draw_element_dash_trail(e);
+                break;
+            case EFFECT_RUNE_CIRCLE:
+                draw_rune_circle(e);
+                break;
+            case EFFECT_CHARGE_BEAM_RING:
+                draw_charge_beam_ring(e);
                 break;
             default: break;
         }
@@ -171,6 +300,9 @@ void render_effects_front() {
                 break;
             case EFFECT_CURSE_LINK:
                 draw_curse_link(e);
+                break;
+            case EFFECT_ORB_SUMMON_GLOW:
+                draw_orb_summon_glow(e);
                 break;
             default: break;
         }

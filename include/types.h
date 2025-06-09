@@ -5,7 +5,7 @@
 #include <allegro5/allegro.h> // For ALLEGRO_COLOR
 #include "config.h" // For MAX_PLAYER_SKILLS, MAX_BOSSES
 
-#define MAX_LOTTERY_PRIZES 2 // 我們有兩種抽獎獎品
+#define MAX_LOTTERY_PRIZES 4 // 我們有四種抽獎獎品
 #define MAX_BACKPACK_SLOTS 10 // 背包中最多可存放的不同物品種類
 
 #define MAX_WARNING_CIRCLES 10 // 最多警示圈上限
@@ -29,18 +29,26 @@ typedef enum {
     
 } GamePhase;
 
-#define MAX_SKILLS 12
+#define MAX_SKILLS 16
 #define MAX_BOSS_SKILLS 3                   // BOSS 技能數量上限
-#define MAX_PLAYER_SKILLS 7                 // 玩家最大技能數量
+#define MAX_BOSS_PRIMARY 2
+#define MAX_PLAYER_SKILLS 11                 // 玩家最大技能數量
 // 技能標識符枚舉
 typedef enum {
     SKILL_NONE,             // 無技能
-    SKILL_WATER_ATTACK,     // 水彈攻擊
-    SKILL_ICE_SHARD,        // 冰錐術
     SKILL_LIGHTNING_BOLT,   // 閃電鏈
     SKILL_HEAL,             // 治療術
-    SKILL_FIREBALL,         // 火球術
+    SKILL_ELEMENT_BALL,     // 元素彈
+
+    SKILL_ELEMENT_DASH,
+    SKILL_CHARGE_BEAM,
+    SKILL_FOCUS,
+    SKILL_ARCANE_ORB,
+    SKILL_RUNE_IMPLOSION,
+    SKILL_REFLECT_BARRIER,
+
     SKILL_PREFECT_DEFENSE,   // 完美防禦
+
     BOSS_SKILL_1,  // Boss 特殊技能 1
     BOSS_SKILL_2,  // Boss 特殊技能 2
     BOSS_SKILL_3,  // Boss 特殊技能 3
@@ -55,13 +63,15 @@ typedef enum{
     BOSS_ABILITY_SKILL,  // Boss 特殊技能
 }BossAbilityIdentifier;
 
-#define MAX_STATE 4
+#define MAX_STATE 6
 // 玩家狀態枚舉
 typedef enum {
     STATE_NORMAL,             // 一般狀態
     STATE_STUN,               // 暈眩狀態
-    STATE_SLOWNESS,            // 緩速狀態
-    STATE_DEFENSE,             // 防禦狀態
+    STATE_SLOWNESS,           // 緩速狀態
+    STATE_DEFENSE,            // 防禦狀態
+    STATE_CHARGING,           // 充能狀態
+    STATE_USING_SKILL         // 充能狀態
 } PlayerStateIdentifier;
 
 // 玩家背包裡的道具
@@ -87,11 +97,13 @@ typedef enum {
 // 投射物類型枚舉
 typedef enum {
     PROJ_TYPE_GENERIC,          // 通用類型 (預設或未使用)
+    PROJ_TYPE_NONE,             // 無屬性投射物
     PROJ_TYPE_WATER,            // 水系投射物
     PROJ_TYPE_FIRE,             // 火系投射物 (通常為 Boss)
     PROJ_TYPE_ICE,              // 冰系投射物
     PROJ_TYPE_PLAYER_FIREBALL,   // 玩家火球術
-    PROJ_TYPE_BIG_EARTHBALL      // 大土球
+    PROJ_TYPE_BIG_EARTHBALL,      // 大土球
+    PROJ_TYPE_DASH                  // 元素衝刺
 } ProjectileType;
 
 // 戰鬥特效枚舉
@@ -100,7 +112,12 @@ typedef enum {
     EFFECT_WARNING_CIRCLE,
     EFFECT_CLAW_SLASH,
     EFFECT_EXPLOSION,
-    EFFECT_CURSE_LINK
+    EFFECT_CURSE_LINK,
+    EFFECT_DASH_TRAIL,
+    EFFECT_CHARGE_BEAM_RING,
+    EFFECT_FOCUS_AURA,
+    EFFECT_ORB_SUMMON_GLOW,
+    EFFECT_RUNE_CIRCLE
     // ... 其他類型
 } EffectType;
 
@@ -108,6 +125,7 @@ typedef enum {
 typedef struct {
     float x, y;                 // 投射物當前位置 (x, y 座標)
     float v_x, v_y;             // 投射物速度向量 (x, y 分量)
+    int radius;                 // 投射物半徑
     bool active;                // 投射物是否啟用 (是否在畫面中移動和碰撞)
     ProjectileOwner owner;      // 投射物擁有者 (玩家或 Boss)
     ProjectileType type;        // 投射物類型 (影響外觀、效果等)
@@ -117,13 +135,15 @@ typedef struct {
 } Projectile;
 
 // SKILL structure
-
 typedef struct {
     SkillIdentifier type;
+    bool learned;
     int cooldown_timers;
     int duration_timers;
+    int charge_timers;
     int variable_1;
     float x, y;
+    //SKILL* next;
 } SKILL;
 
 // 玩家結構
@@ -144,6 +164,8 @@ typedef struct {
     PlayerStateIdentifier state;    // 玩家當前狀態
     int effect_timers[MAX_STATE];
     SKILL learned_skills[MAX_SKILLS]; // 已學習的技能列表
+    //SKILL* current_skill;
+    int current_skill_index;
     int normal_attack_cooldown_timer; // 普通攻擊冷卻計時器
     int item_quantities[NUM_ITEMS]; //記錄每種道具的數量
     ALLEGRO_BITMAP* sprite; // Player's sprite

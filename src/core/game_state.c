@@ -173,7 +173,6 @@ void handle_growth_screen_input(ALLEGRO_EVENT ev) {
     }
     else if (ev.type == ALLEGRO_EVENT_KEY_DOWN && ev.keyboard.keycode == ALLEGRO_KEY_E) {
         game_phase = EQUIPMENT;
-        init_player_skill_select();
     }
 
     else if (ev.type == ALLEGRO_EVENT_MOUSE_AXES) {
@@ -224,5 +223,5 @@ void on_lottery_button_click() {
 
 void on_backpack_button_click() {
     game_phase = BACKPACK;
-    init_backpack();
+    //init_backpack();
 }

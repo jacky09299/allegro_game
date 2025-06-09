@@ -400,7 +400,7 @@ void using_rune_implosion() {
     int x = player.learned_skills[SKILL_RUNE_IMPLOSION].x;
     int y = player.learned_skills[SKILL_RUNE_IMPLOSION].y;
     spawn_warning_circle(x, y, r, al_map_rgba(50, 50, 50, 50), 2);
-    spawn_rune_circle(x, y, r, al_map_rgba(200, 100, 0, 200));
+    spawn_rune_circle(x, y, r, al_map_rgba(200, 0, 0, 200));
     if(player.learned_skills[SKILL_RUNE_IMPLOSION].duration_timers == 1) release_rune_implosion();
 }
 /**

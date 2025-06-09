@@ -123,11 +123,11 @@ void render_growth_screen() {
     al_draw_text(font, al_map_rgb(200, 200, 200), SCREEN_WIDTH / 2, SCREEN_HEIGHT - 50, ALLEGRO_ALIGN_CENTER, "按 ESC 返回主選單");
 
     if (growth_message_timer > 0) {
-    al_draw_text(font, al_map_rgb(255, 255, 0),
-                 SCREEN_WIDTH / 2, 100,
-                 ALLEGRO_ALIGN_CENTER, growth_message);
-    growth_message_timer--;
-}
+        al_draw_text(font, al_map_rgb(255, 255, 0),
+                    SCREEN_WIDTH / 2, 100,
+                    ALLEGRO_ALIGN_CENTER, growth_message);
+        growth_message_timer--;
+    }
 }
 
 /**
@@ -247,5 +247,5 @@ void on_lottery_button_click() {
 
 void on_backpack_button_click() {
     game_phase = BACKPACK;
-    //init_backpack();
+    init_backpack();
 }

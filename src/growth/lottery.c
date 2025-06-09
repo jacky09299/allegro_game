@@ -166,6 +166,13 @@ void render_lottery(void) {
     if (font) {
         al_draw_text(font, al_map_rgb(180, 180, 180), 10, 850, ALLEGRO_ALIGN_LEFT, "按 ESC 返回養成畫面");
     }
+
+    if (growth_message_timer > 0) {
+        al_draw_text(font, al_map_rgb(255, 255, 0),
+                    SCREEN_WIDTH / 2, 100,
+                    ALLEGRO_ALIGN_CENTER, growth_message);
+        growth_message_timer--;
+    }
 }
 
 void handle_lottery_input(ALLEGRO_EVENT ev) {

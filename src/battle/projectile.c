@@ -86,7 +86,9 @@ void update_active_projectiles() {
                         if(bosses[j].current_ability_in_use == BOSS_ABILITY_SKILL){
                             spawn_floating_text(bosses[j].x + 15, bosses[j].y - 25, "防禦破除", al_map_rgb(250, 100, 0));
                         }else
-                        {
+                        {   
+                            if(bosses[j].archetype == BOSS_TYPE_TANK) damage_dealt *= 0.8;
+
                             damage_dealt -= bosses[i].defense;
                         }
                         if (damage_dealt < 1 && projectiles[i].damage > 0) damage_dealt = 1; 
@@ -132,6 +134,12 @@ void render_active_projectiles() {
         if (projectiles[i].active) {
             float proj_screen_x = projectiles[i].x - camera_x;
             float proj_screen_y = projectiles[i].y - camera_y;
+            ALLEGRO_COLOR earth_color[4] = {
+                al_map_rgb(139, 69, 19),      // 巧克力咖啡色
+                al_map_rgb(160, 82, 45),      // 棕色
+                al_map_rgb(101, 67, 33),      // 深咖啡色
+                al_map_rgb(210, 105, 30),     // 黃棕色
+            };
             ALLEGRO_COLOR proj_color;
             switch (projectiles[i].type) {
                 case PROJ_TYPE_WATER: proj_color = al_map_rgb(0, 150, 255); break;
@@ -139,7 +147,10 @@ void render_active_projectiles() {
                 case PROJ_TYPE_ICE: proj_color = al_map_rgb(150, 255, 255); break;
                 case PROJ_TYPE_PLAYER_FIREBALL: proj_color = al_map_rgb(255, 50, 50); break;
                 case PROJ_TYPE_GENERIC:
-                case PROJ_TYPE_BIG_EARTHBALL: proj_color = al_map_rgb(160, 82, 45); break;
+                case PROJ_TYPE_BIG_EARTHBALL: {
+                    proj_color = earth_color[rand() % 4]; 
+                    break;
+                }
                 case PROJ_TYPE_DASH: proj_color = al_map_rgba(5, 5, 100, 50); break;
                 default: proj_color = al_map_rgb(200, 200, 200); break;
             }

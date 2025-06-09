@@ -9,11 +9,50 @@
 #include <stdbool.h>
 #include "escape_gate.h"
 
+// --- UI 元素 ---
+static Button skill_select_button;
+
+// --- Helper: 繪製按鈕 (可放入共用 utils.c 以供多個檔案使用) ---
+static void draw_ui_button(Button* btn, ALLEGRO_FONT* btn_font) {
+    ALLEGRO_COLOR current_color = btn->is_hovered ? btn->hover_color : btn->color;
+    al_draw_filled_rectangle(btn->x, btn->y, btn->x + btn->width, btn->y + btn->height, current_color);
+    if (btn_font && btn->text) {
+        al_draw_text(btn_font, btn->text_color,
+                     btn->x + btn->width / 2,
+                     btn->y + (btn->height - al_get_font_ascent(btn_font)) / 2,
+                     ALLEGRO_ALIGN_CENTRE, btn->text);
+    }
+}
+
+// --- Helper: 檢查滑鼠是否在按鈕上 (可放入共用 utils.c) ---
+static bool is_mouse_on_button(Button* btn, float mouse_x, float mouse_y) {
+    return (mouse_x >= btn->x && mouse_x <= btn->x + btn->width &&
+            mouse_y >= btn->y && mouse_y <= btn->y + btn->height);
+}
+
+void init_backpack(void) {
+    // 初始化 "前往技能裝備" 按鈕
+    skill_select_button.x = SCREEN_WIDTH - 250; // 放置在右上角
+    skill_select_button.y = 30;
+    skill_select_button.width = 220;
+    skill_select_button.height = 40;
+    skill_select_button.text = "技能裝備";
+    skill_select_button.action_phase = EQUIPMENT; // 按下後切換到裝備階段
+    skill_select_button.color = al_map_rgb(150, 100, 200);
+    skill_select_button.hover_color = al_map_rgb(180, 130, 230);
+    skill_select_button.text_color = al_map_rgb(255, 255, 255);
+    skill_select_button.is_hovered = false;
+    printf("Backpack UI button initialized.\n");
+}
+
 void render_backpack(void) {
     al_clear_to_color(al_map_rgb(50, 50, 70));
     if (font) {
         al_draw_text(font, al_map_rgb(220, 220, 200), 750, 30, ALLEGRO_ALIGN_CENTRE, "我的背包");
     }
+
+    // 繪製前往技能裝備的按鈕
+    draw_ui_button(&skill_select_button, font);
 
     if (backpack_item_count == 0) {
         if (font) {
@@ -65,10 +104,17 @@ void render_backpack(void) {
                 }
             }
         }
+
+        if (growth_message_timer > 0) {
+            al_draw_text(font, al_map_rgb(255, 255, 0),
+                        SCREEN_WIDTH / 2, 100,
+                        ALLEGRO_ALIGN_CENTER, growth_message);
+            growth_message_timer--;
+        }
     }
 
     if (font) {
-        al_draw_text(font, al_map_rgb(180, 180, 180), 10, 850, ALLEGRO_ALIGN_LEFT, "按 ESC 返回養成畫面");
+        al_draw_text(font, al_map_rgb(180, 180, 180), 10, 850, ALLEGRO_ALIGN_LEFT, "按 ESC 返回養成畫面，按 B 返回戰鬥畫面");
     }
 }
 
@@ -92,12 +138,19 @@ void handle_backpack_input(ALLEGRO_EVENT ev) {
         if (ev.keyboard.keycode == ALLEGRO_KEY_ESCAPE) {
             game_phase = GROWTH;
         }
-        else if (ev.keyboard.keycode == ALLEGRO_KEY_E && game_phase != BATTLE) {
-            game_phase = EQUIPMENT;
-        }
-    } else if (ev.type == ALLEGRO_EVENT_MOUSE_BUTTON_DOWN) {
+    //    else if (ev.keyboard.keycode == ALLEGRO_KEY_E && game_phase != BATTLE) {
+     //       game_phase = EQUIPMENT;
+      //  }
+    } else if (ev.type == ALLEGRO_EVENT_MOUSE_AXES && game_phase != BATTLE) {
+        // 更新按鈕的懸停狀態
+        skill_select_button.is_hovered = is_mouse_on_button(&skill_select_button, ev.mouse.x, ev.mouse.y); 
+    }else if (ev.type == ALLEGRO_EVENT_MOUSE_BUTTON_DOWN) {
         if (ev.mouse.button == 1) { // 處理左鍵點擊
             // 複製渲染時的佈局邏輯來找到被點擊的物品
+            if (skill_select_button.is_hovered) {
+                game_phase = skill_select_button.action_phase; // 切換到 EQUIPMENT 階段
+                return; // 切換階段後直接返回
+            }
             int items_per_row = 5;
             float slot_size = 200;
             float padding = 20;
@@ -142,8 +195,29 @@ void handle_backpack_input(ALLEGRO_EVENT ev) {
                             player.max_speed += 0.1;
                             break;
                         case 1005: // 指南針
+                            if(show_compass == true || game_phase != BATTLE) {
+                                item_was_used = false;
+                                snprintf(growth_message, sizeof(growth_message), "目前無法使用該道具");
+                                growth_message_timer = 180; // 顯示訊息約 3 秒（假設 60 FPS）
+                            }  
                             show_compass = true;
                             break;
+                        case 1006: // 花
+                            player.money += 3000;
+                            snprintf(growth_message, sizeof(growth_message), "獲得%d元", 3000);
+                                    growth_message_timer = 180; // 顯示訊息約 3 秒（假設 60 FPS）
+                            break;
+                        case 1007: // 惡魔花
+                        {
+                            int hp_loss = player.max_hp * 0.2;
+                            player.max_hp -= hp_loss;
+                            player.strength += hp_loss/100;
+                            if(player.hp > player.max_hp) player.hp = player.max_hp;
+                            snprintf(growth_message, sizeof(growth_message), "失去%d2點血量，獲得%d點力量", hp_loss, hp_loss/100);
+                                    growth_message_timer = 180; // 顯示訊息約 3 秒（假設 60 FPS）
+                            break;
+                        }
+                            
                         default:
                             item_was_used = false; // 此物品沒有定義用途
                             break;

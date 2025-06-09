@@ -15,11 +15,11 @@
  * 設定 Boss 的屬性、圖像資源和特定行為參數。
  */
 void configure_boss_stats_and_assets(Boss* b, BossArchetype archetype, int difficulty_tier, int boss_id_for_cooldown_randomness) {
-    b->max_hp = 60 + difficulty_tier * 30;
-    b->strength = 10 + difficulty_tier * 4;
+    b->max_hp = 60 + difficulty_tier * 60;
+    b->strength = 10 + difficulty_tier * 6;
     b->speed = 1.8f + difficulty_tier * 0.05f;
-    b->defense = 7 + difficulty_tier * 2;
-    b->magic = 10 + difficulty_tier * 2;
+    b->defense = 7 + difficulty_tier * 3;
+    b->magic = 10 + difficulty_tier * 3;
     b->ranged_special_projectile_type = PROJ_TYPE_FIRE;
 
     switch (archetype) {
@@ -310,7 +310,7 @@ void boss_render(Boss* b, float camera_x, float camera_y) {
     // Text rendering for boss stats (uses global `font`)
     // Ensure `font` is accessible (e.g., via "globals.h")
     // `b->target_display_height` is part of the Boss struct.
-    float text_y_offset = b->target_display_height / 2.0f + 7;
+    // float text_y_offset = b->target_display_height / 2.0f + 7;
     const char* archetype_str_label = "";
     switch (b->archetype) {
         case BOSS_TYPE_TANK: archetype_str_label = "坦克"; break;
@@ -321,9 +321,9 @@ void boss_render(Boss* b, float camera_x, float camera_y) {
         // al_draw_textf(font, al_map_rgb(255, 255, 255), boss_screen_x, boss_screen_y - text_y_offset - 100, ALLEGRO_ALIGN_CENTER, "skill1: %d", b->le); //test
         // al_draw_textf(font, al_map_rgb(255, 255, 255), boss_screen_x, boss_screen_y - text_y_offset - 80, ALLEGRO_ALIGN_CENTER, "skill2: %d", b->skill_2_cooldown_timer);
         // al_draw_textf(font, al_map_rgb(255, 255, 255), boss_screen_x, boss_screen_y - text_y_offset - 60, ALLEGRO_ALIGN_CENTER, "skill3: %d", b->skill_3_cooldown_timer);
-        al_draw_textf(font, al_map_rgb(255, 255, 255), boss_screen_x, boss_screen_y - text_y_offset - 40, ALLEGRO_ALIGN_CENTER, "ID:%d %s", b->id, archetype_str_label);
-        al_draw_textf(font, al_map_rgb(255, 255, 255), boss_screen_x, boss_screen_y - text_y_offset - 20, ALLEGRO_ALIGN_CENTER, "HP: %d/%d", b->hp, b->max_hp);
-        al_draw_textf(font, al_map_rgb(200, 200, 200), boss_screen_x, boss_screen_y - text_y_offset, ALLEGRO_ALIGN_CENTER, "力:%d 防:%d 魔:%d 速:%.1f", b->strength, b->defense, b->magic, b->speed);
+        // al_draw_textf(font, al_map_rgb(255, 255, 255), boss_screen_x, boss_screen_y - text_y_offset - 40, ALLEGRO_ALIGN_CENTER, "ID:%d %s", b->id, archetype_str_label);
+        // al_draw_textf(font, al_map_rgb(255, 255, 255), boss_screen_x, boss_screen_y - text_y_offset - 20, ALLEGRO_ALIGN_CENTER, "HP: %d/%d", b->hp, b->max_hp);
+        // al_draw_textf(font, al_map_rgb(200, 200, 200), boss_screen_x, boss_screen_y - text_y_offset, ALLEGRO_ALIGN_CENTER, "力:%d 防:%d 魔:%d 速:%.1f", b->strength, b->defense, b->magic, b->speed);
     }
 
     // Boss 頂端血條

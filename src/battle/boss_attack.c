@@ -20,7 +20,7 @@ void update_tank_ai(Boss* b) {
     float dx = player.x - b->x;
     float dy = player.y - b->y;
     float dist = calculate_distance_between_points(b->x, b->y, player.x, player.y);
-    int current_ranged_special_damage = BOSS_RANGED_SPECIAL_BASE_DAMAGE + b->magic;
+    //int current_ranged_special_damage = BOSS_RANGED_SPECIAL_BASE_DAMAGE + b->magic;
     int difficulty_tier = current_day / 3;
     float normal_spead = 1.8f + difficulty_tier * 0.05f;
     normal_spead *= 0.75f;
@@ -29,7 +29,8 @@ void update_tank_ai(Boss* b) {
     float angle_to_player = atan2(player.y - b->y, player.x - b->x); 
 
     // 技能 1: 裂地震擊
-    if (b->learned_skills[BOSS_SKILL_1].cooldown_timers <= 0 && dist < 150 && b->learned_skills[BOSS_SKILL_1].variable_1 == 0) {
+    if (b->learned_skills[BOSS_SKILL_1].cooldown_timers <= 0 && dist < 150 && b->learned_skills[BOSS_SKILL_1].variable_1 == 0
+    && b->current_ability_in_use == BOSS_ABILITY_MELEE_PRIMARY) {
         b->current_ability_in_use = BOSS_ABILITY_SKILL;
         // 1. 停下等待: 會隨著boss轉動但不移動
         b->speed = 0;
@@ -41,22 +42,23 @@ void update_tank_ai(Boss* b) {
     if (b->learned_skills[BOSS_SKILL_1].cooldown_timers > 0 && b->learned_skills[BOSS_SKILL_1].variable_1 == 1) {
         int r = 150; //調整技能大小範圍
         spawn_warning_circle(b->x +cos(angle_to_player) * r, b->y +sin(angle_to_player) * r, r, 
-                            al_map_rgba(255, 0, 0, 150) , 0.1f * FPS);
+                            al_map_rgba(255, 0, 0, 50) , 0.1f * FPS);
     }
     // 3. 施放技能
     if (b->learned_skills[BOSS_SKILL_1].cooldown_timers <= 0 && b->learned_skills[BOSS_SKILL_1].variable_1 == 1) {
         int r = 145; //調整技能大小範圍
-        
+        spawn_warning_circle(b->x +cos(angle_to_player) * (r+5), b->y +sin(angle_to_player) * (r+5), r + 5, 
+                            al_map_rgb(1, 1, 1), 5 * FPS);
         spawn_warning_circle(b->x +cos(angle_to_player) * r, b->y +sin(angle_to_player) * r, r, 
-                            al_map_rgb(160, 82, 45), 1 * FPS);
+                            al_map_rgb(139, 69, 19), 1 * FPS);
         //al_draw_filled_circle(b->x +cos(angle_to_player) * r, b->y +sin(angle_to_player) * r, r, al_map_rgba(150, 200, 0, 250));
         //al_map_rgb(255, 100, 0)
         // 3. 判斷玩家是否在範圍內
         if(calculate_distance_between_points(b->x+cos(angle_to_player) * r, b->y +sin(angle_to_player) * r, player.x, player.y) < r) { //命中判定
             // 傷害計算
             if(player_is_hit()){
-                int damage_dealt = b->strength; 
-                player.hp -= 2.5f * damage_dealt; // 高額傷害
+                int damage_dealt = b->strength + 50; 
+                player.hp -= 5 * damage_dealt; // 高額傷害
                 player.hp -= player.max_hp * 0.05f; // 百分比傷害
                 //player.is_stunned = true;
                 //player.stun_timer = 60; // 暈 1 秒
@@ -84,8 +86,8 @@ void update_tank_ai(Boss* b) {
         printf("Boss use Skill 2\n");
     }
     if(b->is_dashing) {
-        spawn_warning_circle(player.x, player.x, 50, 
-                            al_map_rgba(255, 0, 0, 150) , 0.1f * FPS);
+        spawn_warning_circle(player.x, player.y, 50, 
+                            al_map_rgba(255, 0, 0, 50) , 2);
     }
     if(b->is_dashing && dist < 50){
         b->is_dashing = false;
@@ -111,20 +113,24 @@ void update_tank_ai(Boss* b) {
     }
 
     // 遠程攻擊: 巨石投擲
-    if (b->learned_skills[BOSS_RANGE_PRIMARY].cooldown_timers  <= 0 && dist > 120
+    if (b->learned_skills[BOSS_RANGE_PRIMARY].cooldown_timers  <= 0 && dist > 150
         && b->current_ability_in_use == BOSS_ABILITY_MELEE_PRIMARY
     ) {
         spawn_projectile(30, b->x, b->y, player.x, player.y,  //發射巨石
-                        OWNER_BOSS, PROJ_TYPE_BIG_EARTHBALL, current_ranged_special_damage * 2,
-                        BOSS_RANGED_SPECIAL_PROJECTILE_BASE_SPEED * 0.4f, BOSS_RANGED_SPECIAL_PROJECTILE_BASE_LIFESPAN * 0.75f, b->id);
+                        OWNER_BOSS, PROJ_TYPE_BIG_EARTHBALL, 20 + b->magic * 2,
+                        BOSS_RANGED_SPECIAL_PROJECTILE_BASE_SPEED * 0.4f, BOSS_RANGED_SPECIAL_PROJECTILE_BASE_LIFESPAN * 2, b->id);
         // TODO: 停頓?
-        b->learned_skills[BOSS_RANGE_PRIMARY].cooldown_timers   = 5 * FPS;
+        b->learned_skills[BOSS_RANGE_PRIMARY].cooldown_timers  = 5 * FPS;
     }
 
     // 近戰攻擊:
-    if (b->learned_skills[BOSS_MELEE_PRIMARY].cooldown_timers  <= 0 && dist < 80) {
-        // TODO: 
-        b->learned_skills[BOSS_MELEE_PRIMARY].cooldown_timers  = 0.5 * FPS;
+    if (b->learned_skills[BOSS_MELEE_PRIMARY].cooldown_timers  <= 0 && dist < 150
+    &&  b->current_ability_in_use == BOSS_ABILITY_MELEE_PRIMARY) {
+        // TODO:
+        spawn_projectile(50, b->x, b->y, player.x, player.y,  //發射巨石
+                        OWNER_BOSS, PROJ_TYPE_BIG_EARTHBALL, 20 + b->strength,
+                        1, 80, b->id);
+        b->learned_skills[BOSS_MELEE_PRIMARY].cooldown_timers  = 2 * FPS;
     }
 
     // 基本面向
@@ -181,7 +187,7 @@ void update_skillful_ai(Boss* b) {
             b->y += sinf(angle) * teleport_dist;
         }
         // 詛咒傷害
-        int damage_dealt = b->learned_skills[BOSS_SKILL_3].variable_1 * 5;
+        int damage_dealt = b->learned_skills[BOSS_SKILL_3].variable_1 * 5 + b->magic;
         player.hp -= damage_dealt; 
         // 傷害顯示
         snprintf(dmg_text, sizeof(dmg_text), "詛咒傷害 %.0d", damage_dealt); // 無小數位，%.1f 顯示1位小數也可
@@ -221,7 +227,7 @@ void update_skillful_ai(Boss* b) {
         b->learned_skills[BOSS_MELEE_PRIMARY].y = b->y;
         b->learned_skills[BOSS_MELEE_PRIMARY].duration_timers = 5 * FPS;
         spawn_warning_circle(b->x, b->y, 120, 
-                            al_map_rgba(0, 0, 150, 200) , 5 * FPS);
+                            al_map_rgba(0, 0, 150, 100) , 5 * FPS);
         // TODO: 召喚地面吸附 + 爆炸
         b->learned_skills[BOSS_MELEE_PRIMARY].cooldown_timers  = 10 * FPS;
     }
@@ -269,7 +275,7 @@ void update_berserker_ai(Boss* b) {
 
         // 傷害計算
         if(player_is_hit()) {
-            int damage_dealt = b->strength; 
+            int damage_dealt = 10 + b->strength; 
             player.hp -= damage_dealt;
             if(b->learned_skills[BOSS_SKILL_3].variable_1 > 2) b->learned_skills[BOSS_SKILL_3].variable_1 -= 2;  // 命中降低怒氣值
             
@@ -298,9 +304,37 @@ void update_berserker_ai(Boss* b) {
     }
 
     // 技能 2: 獵殺衝刺（中距離）
-    if (b->learned_skills[BOSS_SKILL_2].cooldown_timers <= 0 && dist > 300 && dist < 1000) {
-        // TODO: 猛衝造成暈眩
-        b->learned_skills[BOSS_SKILL_2].cooldown_timers = 10 * FPS;
+    if (b->learned_skills[BOSS_SKILL_2].cooldown_timers <= 0 && dist > 300 
+        && dist < 1000 && b->current_ability_in_use == BOSS_ABILITY_MELEE_PRIMARY) {
+        b->current_ability_in_use = BOSS_ABILITY_SKILL;
+        b->is_dashing = true;
+        b->speed = player.max_speed * 2.0f;
+        printf("Boss use Skill 2\n");
+    }
+    if(b->is_dashing) {
+        spawn_warning_circle(player.x, player.y, 50, 
+                            al_map_rgba(255, 0, 0, 50) , 0.1f * FPS);
+    }
+    if(b->is_dashing && dist < 50){
+        b->is_dashing = false;
+        b->speed = normal_spead;
+        
+        // 傷害計算
+        if(player_is_hit()) {
+            int damage_dealt = 10 + b->strength * 2; 
+            player.hp -= damage_dealt; 
+            printf("Boss attacked player with skill 2! player HP: %d\n", player.hp);
+
+            // 傷害顯示
+            snprintf(dmg_text, sizeof(dmg_text), "%.0d", damage_dealt); // 無小數位，%.1f 顯示1位小數也可
+            spawn_floating_text(player.x + 15, player.y - 25, dmg_text, al_map_rgba(255, 0, 0, 250));
+
+            b->learned_skills[BOSS_SKILL_2].cooldown_timers = 15 * FPS;
+            // TODO: 添加暈眩與特效
+            player.effect_timers[STATE_STUN] = 1 * FPS;
+            spawn_floating_text(player.x + 15, player.y - 25, "擊暈", al_map_rgba(200, 100, 255, 250));
+        }
+        b->current_ability_in_use = BOSS_ABILITY_MELEE_PRIMARY;
     }
 
     // 技能 3: 嗜血狂暴（怒氣觸發）
@@ -312,7 +346,7 @@ void update_berserker_ai(Boss* b) {
     // 狂暴特效
     if (b->learned_skills[BOSS_SKILL_3].cooldown_timers >= 600) {
         b->speed = player.max_speed * 1.1f;
-        spawn_warning_circle(b->x, b->y, 50, 
+        spawn_warning_circle(b->x, b->y, 40, 
                             al_map_rgba(255, 0, 0, 150) , 0.1f * FPS);
         if(b->learned_skills[BOSS_SKILL_3].cooldown_timers % FPS == 0) b->learned_skills[BOSS_SKILL_3].variable_1--;
     }
@@ -339,7 +373,7 @@ void update_berserker_ai(Boss* b) {
         spawn_claw_slash(player.x, player.y, angle_to_player);
         // 傷害計算
         if(player_is_hit()) {
-            int damage_dealt = b->strength; 
+            int damage_dealt = 5 + b->strength; 
             player.hp -= damage_dealt;
             if(b->learned_skills[BOSS_SKILL_3].variable_1 > 3) b->learned_skills[BOSS_SKILL_3].variable_1 -= 3; // 命中降低怒氣值
             

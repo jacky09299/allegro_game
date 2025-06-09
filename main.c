@@ -62,12 +62,104 @@ double theme_bgm_pos[THEME_BGM_COUNT] = {0.0};
 // 記錄當前正在播放的音樂類型 (0: 戰鬥, 1: 主題, -1: 無)
 int current_bgm_type = -1;
 
-/**
- * @brief 從指定秒數開始播放背景音樂。
- *
- * @param filename 音樂檔案路徑。
- * @param pos_sec 要開始播放的時間點（秒）。
- */
+#define VIDEO_FRAME_COUNT 240
+#define VIDEO_FPS 30.0
+ALLEGRO_BITMAP* video_frames[VIDEO_FRAME_COUNT];
+
+void load_video_frames() {
+    char filename[256];
+    for (int i = 0; i < VIDEO_FRAME_COUNT; ++i) {
+        snprintf(filename, sizeof(filename), "assets/video_frames/frame_%03d.png", i);
+        video_frames[i] = al_load_bitmap(filename);
+        if (!video_frames[i]) {
+            fprintf(stderr, "無法載入 %s\n", filename);
+        }
+    }
+}
+
+void play_video_frames() {
+    double start_time = al_get_time();
+    while (al_get_time() - start_time < VIDEO_FRAME_COUNT / VIDEO_FPS) {
+        double elapsed = al_get_time() - start_time;
+        int frame_idx = (int)(elapsed * VIDEO_FPS);
+        if (frame_idx >= VIDEO_FRAME_COUNT) break;
+
+        if (video_frames[frame_idx]) {
+            al_draw_scaled_bitmap(
+                video_frames[frame_idx],
+                0, 0,
+                al_get_bitmap_width(video_frames[frame_idx]),
+                al_get_bitmap_height(video_frames[frame_idx]),
+                0, 0,
+                SCREEN_WIDTH, SCREEN_HEIGHT,
+                0
+            );
+            al_flip_display();
+        }
+    }
+}
+
+// 新版本：一點進去就開始播，沒有 Loading 畫面
+void play_intro_video_from_frames() {
+    char filename[256];
+    double frame_duration = 1.0 / VIDEO_FPS*2;
+    ALLEGRO_BITMAP* current_frame = NULL;
+
+    // 直接進入播放迴圈
+    for (int i = 0; i < VIDEO_FRAME_COUNT; i+=2) {
+        double frame_start_time = al_get_time();
+
+        // 處理事件，允許用戶在播放時關閉視窗或按 ESC 跳過
+        ALLEGRO_EVENT ev;
+        // 使用 al_get_next_event 而非 al_wait_for_event，這樣不會阻塞播放流程
+        while (al_get_next_event(event_queue, &ev)) {
+            if (ev.type == ALLEGRO_EVENT_DISPLAY_CLOSE) {
+                game_phase = EXIT;
+                return; // 提前結束函式
+            }
+            if (ev.type == ALLEGRO_EVENT_KEY_DOWN && ev.keyboard.keycode == ALLEGRO_KEY_ESCAPE) {
+                printf("影片已跳過。\n");
+                return; // 提前結束函式
+            }
+        }
+        // 清空事件佇列後，清空畫面，準備繪製新的一幀
+        al_clear_to_color(al_map_rgb(0, 0, 0));
+
+        // 1. 載入當前這一幀的圖片
+        snprintf(filename, sizeof(filename), "assets/video_frames/frame_%03d.png", i);
+        current_frame = al_load_bitmap(filename);
+
+        if (current_frame) {
+            // 2. 繪製這一幀
+            al_draw_scaled_bitmap(
+                current_frame,
+                0, 0,
+                al_get_bitmap_width(current_frame),
+                al_get_bitmap_height(current_frame),
+                0, 0,
+                SCREEN_WIDTH, SCREEN_HEIGHT,
+                0
+            );
+            
+            // 3. 銷毀點陣圖，釋放記憶體
+            al_destroy_bitmap(current_frame);
+        } else {
+            fprintf(stderr, "警告: 無法載入影格 %s，將顯示黑畫面。\n", filename);
+            // 如果載入失敗，因為前面已經 clear_to_color，這一幀會是黑的
+        }
+
+        // 4. 顯示畫面
+        al_flip_display();
+
+        // 5. 控制播放速度
+        double time_spent = al_get_time() - frame_start_time;
+        if (time_spent < frame_duration) {
+            al_rest(frame_duration - time_spent);
+        }
+    }
+}
+
+
 void play_bgm_with_pos(const char* filename, double pos_sec) {
     // 停止並銷毀舊的實例和樣本，防止記憶體洩漏
     if (bgm_instance) {
@@ -113,7 +205,7 @@ void play_bgm_with_pos(const char* filename, double pos_sec) {
 }
 
 /**
- * @brief 停止當前播放的背景音樂。
+ * 停止當前播放的背景音樂。
  */
 void stop_bgm() {
     if (bgm_instance) {
@@ -204,6 +296,10 @@ void shutdown_game_systems_and_assets() {
 int main() {
     GamePhase last_phase = -1; // 用來偵測遊戲狀態是否改變
     init_game_systems_and_assets(); 
+    
+    // 載入影片畫面
+    play_intro_video_from_frames();
+
     bool game_is_running = true;    
     bool needs_redraw = true;       
     init_minigame2();

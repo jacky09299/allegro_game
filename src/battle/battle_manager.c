@@ -99,7 +99,7 @@ void manage_battle_state(void) {
 void battle_manager_handle_input(ALLEGRO_EVENT* ev, bool keys[]) {
     if (keys[ALLEGRO_KEY_B] && !last_key_b_state){
         is_backpack_open = !is_backpack_open; // 切換背包狀態
-        //init_backpack(); // 初始化背包內容
+        init_backpack(); // 初始化背包內容
     }
     if (keys[ALLEGRO_KEY_ESCAPE] && !last_key_esc_state && !is_backpack_open) {
         is_pause = !is_pause; 
